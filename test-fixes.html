@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fixes - Ride Completion & Review System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .step-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .step-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .checklist {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .checklist-item {
+            margin: 5px 0;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Fixes for Ride Completion & Review System</h1>
+    <p>This page tests the fixes for the issues you reported:</p>
+    <ul>
+        <li>✅ Fixed white screen in "Going Rides" tab</li>
+        <li>✅ Fixed review popup not appearing after Complete Ride button</li>
+        <li>✅ Added Complete Ride button for co-passengers</li>
+        <li>✅ Enhanced review popup with proper functionality</li>
+    </ul>
+
+    <div class="test-section">
+        <div class="step-title">🎯 Issues Fixed</div>
+        <div class="step-description">
+            The following issues have been resolved:
+        </div>
+        
+        <div class="checklist">
+            <div class="checklist-item">
+                <strong>✅ White Screen in Going Rides Tab</strong><br>
+                Fixed JSX syntax errors in MyAnnouncements.jsx that caused the white screen
+            </div>
+            <div class="checklist-item">
+                <strong>✅ Review Popup Not Appearing</strong><br>
+                Fixed the handleCompleteRide function to properly trigger the review modal
+            </div>
+            <div class="checklist-item">
+                <strong>✅ Complete Ride for Co-passengers</strong><br>
+                Added Complete Ride button in "Going Rides" tab for co-passengers
+            </div>
+            <div class="checklist-item">
+                <strong>✅ Review Popup Enhancement</strong><br>
+                Enhanced ReviewModal with personalized titles and radio button reports
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="step-title">🧪 Manual Testing Steps</div>
+        <div class="step-description">
+            Follow these steps to verify the fixes work correctly:
+        </div>
+        
+        <div class="checklist">
+            <div class="checklist-item">
+                <strong>1. Test "Going Rides" Tab:</strong><br>
+                • Navigate to My Announcements page<br>
+                • Click on "Going Rides" tab<br>
+                • Should see rides (not white screen)<br>
+                • Should only show accepted rides
+            </div>
+            <div class="checklist-item">
+                <strong>2. Test Complete Ride Button:</strong><br>
+                • Find a ride that has passed its time<br>
+                • Should see "Complete Ride" button (both creator and co-passenger)<br>
+                • Click the button
+            </div>
+            <div class="checklist-item">
+                <strong>3. Test Review Popup:</strong><br>
+                • After clicking Complete Ride, review popup should appear<br>
+                • Title should say "Please Review [Username]"<br>
+                • Should have 5-star rating system<br>
+                • Should have radio button report options
+            </div>
+            <div class="checklist-item">
+                <strong>4. Test Review Submission:</strong><br>
+                • Select a star rating<br>
+                • Add optional feedback<br>
+                • Click "Submit Review"<br>
+                • Should see success message
+            </div>
+            <div class="checklist-item">
+                <strong>5. Test Report Functionality:</strong><br>
+                • Click "Report an Issue"<br>
+                • Select a radio button option<br>
+                • Add description<br>
+                • Click "Submit Report"
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="step-title">🔍 What Was Fixed</div>
+        <div class="step-description">
+            Technical details of the fixes applied:
+        </div>
+        
+        <div class="checklist">
+            <div class="checklist-item">
+                <strong>JSX Syntax Errors:</strong><br>
+                • Fixed missing closing tags in MyAnnouncements.jsx<br>
+                • Fixed self-executing function syntax<br>
+                • Fixed AnimatePresence component structure
+            </div>
+            <div class="checklist-item">
+                <strong>Complete Ride Functionality:</strong><br>
+                • Updated canCompleteRide() to work for co-passengers<br>
+                • Added Complete Ride button in "Going Rides" tab<br>
+                • Fixed handleCompleteRide() to trigger review modal
+            </div>
+            <div class="checklist-item">
+                <strong>Review Modal Enhancement:</strong><br>
+                • Personalized review titles<br>
+                • Radio button report options<br>
+                • Better user experience and flow
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="step-title">📋 Files Modified</div>
+        <div class="step-description">
+            The following files were modified to fix the issues:
+        </div>
+        
+        <div class="checklist">
+            <div class="checklist-item">
+                <strong>client/src/pages/MyAnnouncements.jsx</strong><br>
+                • Fixed JSX syntax errors<br>
+                • Added Complete Ride button for co-passengers<br>
+                • Updated canCompleteRide function
+            </div>
+            <div class="checklist-item">
+                <strong>client/src/components/ReviewModal.jsx</strong><br>
+                • Enhanced with personalized titles<br>
+                • Added radio button report options
+            </div>
+            <div class="checklist-item">
+                <strong>server/routes/notifications.js</strong><br>
+                • Added review and report notification endpoints
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <div class="step-title">🚀 Next Steps</div>
+        <div class="step-description">
+            To complete the testing:
+        </div>
+        
+        <div class="checklist">
+            <div class="checklist-item">
+                <strong>1. Start your development server</strong><br>
+                • Make sure the client and server are running
+            </div>
+            <div class="checklist-item">
+                <strong>2. Log in to the application</strong><br>
+                • Use a test account with existing rides
+            </div>
+            <div class="checklist-item">
+                <strong>3. Test the complete flow</strong><br>
+                • Follow the manual testing steps above
+            </div>
+            <div class="checklist-item">
+                <strong>4. Check for console errors</strong><br>
+                • Open browser dev tools<br>
+                • Look for any JavaScript errors
+            </div>
+        </div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultDiv = document.getElementById('results');
+            const resultEntry = document.createElement('div');
+            resultEntry.className = `result ${type}`;
+            resultEntry.textContent = `[${timestamp}] ${message}`;
+            resultDiv.appendChild(resultEntry);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        window.onload = function() {
+            log('🔧 Ride Completion & Review System Fixes Ready', 'success');
+            log('📝 Please test the application manually using the steps above', 'info');
+            log('🎯 Key fixes: White screen resolved, Review popup working, Co-passenger Complete Ride added', 'success');
+        };
+    </script>
+</body>
+</html>

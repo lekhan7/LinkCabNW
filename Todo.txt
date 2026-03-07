@@ -1,0 +1,10 @@
+**1 Add Privacy Policy Details 
+**2 Add Terms and Conditions Details 
+**3 Add About Us Details 
+**4 Add Contact Us Details
+**5 Redirect the backend Works
+**6 Gender Field in the Login Page
+**7 Change the logo in Login
+**8 To Add Posters
+**9 To delete The  Announcements which is completed
+**10 Logo  Badda

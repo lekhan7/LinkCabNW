@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 API Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .fix-status {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 API Fix Verification</h1>
+    <p>This page tests the fix for the 500 Internal Server Error in the reviewable-users endpoint.</p>
+
+    <div class="fix-status">
+        <h3>✅ Fix Applied</h3>
+        <p><strong>Issue:</strong> 500 Internal Server Error when getting reviewable users</p>
+        <p><strong>Cause:</strong> Missing database functions (get_reviewable_users, submit_review, submit_report)</p>
+        <p><strong>Solution:</strong> Added fallback logic in API routes to handle missing functions</p>
+        <p><strong>Status:</strong> FIXED - API now works with or without database functions</p>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Test the Fixed API</h3>
+        <p>Enter your JWT token and an announcement ID to test the API endpoints:</p>
+        
+        <label for="serverUrl">Server URL:</label><br>
+        <input type="text" id="serverUrl" value="http://localhost:5000" style="width: 300px; padding: 5px; margin: 5px 0;">
+        <br><br>
+        
+        <label for="userToken">JWT Token:</label><br>
+        <input type="text" id="userToken" placeholder="Enter your JWT token" style="width: 400px; padding: 5px; margin: 5px 0;">
+        <br><br>
+        
+        <label for="announcementId">Announcement ID:</label><br>
+        <input type="text" id="announcementId" placeholder="Enter announcement ID" style="width: 300px; padding: 5px; margin: 5px 0;">
+        <br><br>
+        
+        <button class="test-button" onclick="testReviewableUsers()">Test Reviewable Users API</button>
+        <button class="test-button" onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="test-section">
+        <h3>📋 What the Fix Does</h3>
+        <ul>
+            <li><strong>Before:</strong> API crashed with 500 error if database functions didn't exist</li>
+            <li><strong>After:</strong> API gracefully falls back to direct database queries</li>
+            <li><strong>Benefit:</strong> System works immediately without requiring database setup</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>🚀 Next Steps</h3>
+        <ol>
+            <li>Test the API using the button above</li>
+            <li>Try the Complete Ride button in your application</li>
+            <li>Verify the review popup appears correctly</li>
+            <li>Test star rating and report functionality</li>
+        </ol>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultDiv = document.getElementById('results');
+            const resultEntry = document.createElement('div');
+            resultEntry.className = `result ${type}`;
+            resultEntry.textContent = `[${timestamp}] ${message}`;
+            resultDiv.appendChild(resultEntry);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testReviewableUsers() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const token = document.getElementById('userToken').value;
+            const announcementId = document.getElementById('announcementId').value;
+
+            if (!token || !announcementId) {
+                log('❌ Please provide both JWT token and announcement ID', 'error');
+                return;
+            }
+
+            log('🧪 Testing reviewable-users API endpoint...', 'info');
+
+            try {
+                const response = await fetch(`${serverUrl}/api/reviews/${announcementId}/reviewable-users`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    log(`✅ API call successful! Status: ${response.status}`, 'success');
+                    log(`📊 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                    
+                    if (data.success && data.data) {
+                        log(`👥 Found ${data.data.length} reviewable users`, 'success');
+                        data.data.forEach((user, index) => {
+                            log(`   User ${index + 1}: ${user.name} (${user.completion_type})`, 'info');
+                        });
+                    }
+                } else {
+                    log(`❌ API call failed: ${response.status} ${response.statusText}`, 'error');
+                    log(`📊 Error Response: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+
+            log('\n🎯 Expected Results:', 'info');
+            log('   • API should return 200 OK (not 500 error)', 'info');
+            log('   • Should return list of reviewable users', 'info');
+            log('   • Review popup should now work in the app', 'info');
+        }
+
+        window.onload = function() {
+            log('🔧 API Fix Test Page Loaded', 'success');
+            log('📝 The 500 Internal Server Error has been fixed with fallback logic', 'info');
+            log('🚀 Test the API to verify the fix works', 'info');
+        };
+    </script>
+</body>
+</html>

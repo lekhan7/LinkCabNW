@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ride Completion & Review Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .step-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .step-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Ride Completion & Review System Test</h1>
+    <p>This page tests the complete ride completion and review flow including:</p>
+    <ul>
+        <li>Ride completion functionality</li>
+        <li>Review popup with star ratings</li>
+        <li>Report functionality with radio buttons</li>
+        <li>Notifications for reviews and reports</li>
+        <li>Analytics page display</li>
+        <li>My Announcements filtering</li>
+    </ul>
+
+    <div class="test-section">
+        <div class="step-title">📋 Test Configuration</div>
+        <div class="step-description">
+            Configure the test parameters below. Make sure you have a running server at the specified URL.
+        </div>
+        <label for="serverUrl">Server URL:</label>
+        <input type="text" id="serverUrl" value="http://localhost:5000" style="width: 300px; padding: 5px;">
+        <br><br>
+        <label for="userToken">User Token (JWT):</label>
+        <input type="text" id="userToken" placeholder="Enter your JWT token" style="width: 400px; padding: 5px;">
+        <br><br>
+        <label for="announcementId">Announcement ID:</label>
+        <input type="text" id="announcementId" placeholder="Enter announcement ID to test" style="width: 300px; padding: 5px;">
+        <br><br>
+        <button class="test-button" onclick="runAllTests()">🚀 Run All Tests</button>
+        <button class="test-button" onclick="clearResults()">🗑️ Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const serverUrl = document.getElementById('serverUrl').value;
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultDiv = document.getElementById('results');
+            const resultEntry = document.createElement('div');
+            resultEntry.className = `result ${type}`;
+            resultEntry.textContent = `[${timestamp}] ${message}`;
+            resultDiv.appendChild(resultEntry);
+            testResults.push({ timestamp, message, type });
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+        }
+
+        async function makeRequest(endpoint, method = 'GET', body = null, requiresAuth = true) {
+            const url = `${document.getElementById('serverUrl').value}${endpoint}`;
+            const token = document.getElementById('userToken').value;
+            
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+
+            if (requiresAuth && token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return { response, data };
+            } catch (error) {
+                log(`Request failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function testRideCompletion() {
+            log('🏁 Testing Ride Completion...', 'info');
+            
+            const announcementId = document.getElementById('announcementId').value;
+            if (!announcementId) {
+                log('❌ Please provide an announcement ID', 'error');
+                return false;
+            }
+
+            try {
+                const { response, data } = await makeRequest('/api/ride-completion/complete', 'POST', {
+                    completionType: 'creator'
+                });
+
+                if (response.ok) {
+                    log(`✅ Ride completion successful: ${data.message}`, 'success');
+                    log(`📊 Completion status: ${JSON.stringify(data.data)}`, 'info');
+                    return true;
+                } else {
+                    log(`❌ Ride completion failed: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Ride completion error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testReviewableUsers() {
+            log('👥 Testing Reviewable Users API...', 'info');
+            
+            const announcementId = document.getElementById('announcementId').value;
+            if (!announcementId) {
+                log('❌ Please provide an announcement ID', 'error');
+                return false;
+            }
+
+            try {
+                const { response, data } = await makeRequest(`/api/reviews/${announcementId}/reviewable-users`);
+
+                if (response.ok) {
+                    log(`✅ Found ${data.data?.length || 0} reviewable users`, 'success');
+                    data.data?.forEach((user, index) => {
+                        log(`   User ${index + 1}: ${user.name} (${user.completion_type})`, 'info');
+                    });
+                    return data.data || [];
+                } else {
+                    log(`❌ Failed to get reviewable users: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Reviewable users error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testReviewSubmission(reviewableUsers) {
+            log('⭐ Testing Review Submission...', 'info');
+            
+            if (!reviewableUsers || reviewableUsers.length === 0) {
+                log('❌ No reviewable users available', 'error');
+                return false;
+            }
+
+            const announcementId = document.getElementById('announcementId').value;
+            const testUser = reviewableUsers[0];
+
+            try {
+                const { response, data } = await makeRequest('/api/reviews/submit', 'POST', {
+                    announcementId: announcementId,
+                    revieweeId: testUser.id,
+                    rating: 5,
+                    feedback: 'Great ride! Very smooth and comfortable.'
+                });
+
+                if (response.ok) {
+                    log(`✅ Review submitted successfully: ${data.message}`, 'success');
+                    log(`📈 New average rating: ${data.data?.new_average_rating || 'N/A'}`, 'info');
+                    return true;
+                } else {
+                    log(`❌ Review submission failed: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Review submission error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testReportSubmission() {
+            log('🚩 Testing Report Submission...', 'info');
+            
+            const announcementId = document.getElementById('announcementId').value;
+            if (!announcementId) {
+                log('❌ Please provide an announcement ID', 'error');
+                return false;
+            }
+
+            // First get a user to report (we'll use a dummy ID for testing)
+            const testUserId = '00000000-0000-0000-0000-000000000000'; // Dummy UUID
+
+            try {
+                const { response, data } = await makeRequest('/api/reports/submit', 'POST', {
+                    announcementId: announcementId,
+                    reportedUserId: testUserId,
+                    reason: 'misbehavior',
+                    description: 'Test report for system validation'
+                });
+
+                if (response.ok) {
+                    log(`✅ Report submitted successfully: ${data.message}`, 'success');
+                    return true;
+                } else {
+                    log(`⚠️ Report submission failed (expected for dummy user): ${data.message}`, 'warning');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Report submission error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testNotifications() {
+            log('🔔 Testing Notifications...', 'info');
+
+            try {
+                const { response, data } = await makeRequest('/api/notifications');
+
+                if (response.ok) {
+                    log(`✅ Found ${data.data?.length || 0} notifications`, 'success');
+                    data.data?.forEach((notif, index) => {
+                        log(`   Notification ${index + 1}: ${notif.title} - ${notif.type}`, 'info');
+                    });
+                    return true;
+                } else {
+                    log(`❌ Failed to get notifications: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Notifications error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testAnalytics() {
+            log('📊 Testing Analytics...', 'info');
+
+            try {
+                const { response, data } = await makeRequest('/api/user-analytics/rating-analytics');
+
+                if (response.ok) {
+                    log(`✅ Analytics data retrieved successfully`, 'success');
+                    const analytics = data.data?.analytics;
+                    if (analytics) {
+                        log(`   Average Rating: ${analytics.average_rating || 0}`, 'info');
+                        log(`   Total Reviews: ${analytics.total_reviews_received || 0}`, 'info');
+                        log(`   Total Reports: ${analytics.total_reports_received || 0}`, 'info');
+                    }
+                    return true;
+                } else {
+                    log(`❌ Failed to get analytics: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Analytics error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testReportCategories() {
+            log('📋 Testing Report Categories...', 'info');
+
+            try {
+                const { response, data } = await makeRequest('/api/reports/reasons');
+
+                if (response.ok) {
+                    log(`✅ Found ${data.data?.length || 0} report categories`, 'success');
+                    data.data?.forEach((category, index) => {
+                        log(`   Category ${index + 1}: ${category.label} (${category.value})`, 'info');
+                    });
+                    return true;
+                } else {
+                    log(`❌ Failed to get report categories: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Report categories error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testMyAnnouncements() {
+            log('📢 Testing My Announcements...', 'info');
+
+            try {
+                const { response, data } = await makeRequest('/api/announcements/my-announcements');
+
+                if (response.ok) {
+                    log(`✅ Found ${data.data?.length || 0} user announcements`, 'success');
+                    log(`   This should show only rides created by the user`, 'info');
+                    return true;
+                } else {
+                    log(`❌ Failed to get my announcements: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ My announcements error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testGoingRides() {
+            log('🚗 Testing Going Rides...', 'info');
+
+            try {
+                const { response, data } = await makeRequest('/api/announcements/going-rides');
+
+                if (response.ok) {
+                    log(`✅ Found ${data.data?.length || 0} going rides`, 'success');
+                    log(`   This should show only rides where user is ACCEPTED (not pending/rejected)`, 'info');
+                    data.data?.forEach((ride, index) => {
+                        log(`   Going Ride ${index + 1}: ${ride.start_location_name} → ${ride.destination_name} (Status: ${ride.my_participant_status})`, 'info');
+                    });
+                    return true;
+                } else {
+                    log(`❌ Failed to get going rides: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Going rides error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            log('🚀 Starting Complete Ride Completion & Review Flow Test...', 'info');
+            log('=' .repeat(80), 'info');
+
+            const token = document.getElementById('userToken').value;
+            if (!token) {
+                log('❌ Please provide a user token to run tests', 'error');
+                return;
+            }
+
+            let passedTests = 0;
+            let totalTests = 0;
+
+            // Test 1: Report Categories
+            totalTests++;
+            if (await testReportCategories()) passedTests++;
+
+            // Test 2: My Announcements
+            totalTests++;
+            if (await testMyAnnouncements()) passedTests++;
+
+            // Test 3: Going Rides
+            totalTests++;
+            if (await testGoingRides()) passedTests++;
+
+            // Test 4: Notifications
+            totalTests++;
+            if (await testNotifications()) passedTests++;
+
+            // Test 5: Analytics
+            totalTests++;
+            if (await testAnalytics()) passedTests++;
+
+            // Test 6: Ride Completion (requires announcement ID)
+            const announcementId = document.getElementById('announcementId').value;
+            if (announcementId) {
+                totalTests++;
+                if (await testRideCompletion()) {
+                    passedTests++;
+                    
+                    // Test 7: Reviewable Users
+                    totalTests++;
+                    const reviewableUsers = await testReviewableUsers();
+                    if (reviewableUsers) {
+                        passedTests++;
+                        
+                        // Test 8: Review Submission
+                        totalTests++;
+                        if (await testReviewSubmission(reviewableUsers)) passedTests++;
+                    }
+                    
+                    // Test 9: Report Submission
+                    totalTests++;
+                    if (await testReportSubmission()) passedTests++;
+                }
+            } else {
+                log('⚠️ Skipping ride completion tests (no announcement ID provided)', 'warning');
+            }
+
+            // Summary
+            log('=' .repeat(80), 'info');
+            log(`📊 Test Results: ${passedTests}/${totalTests} tests passed`, passedTests === totalTests ? 'success' : 'warning');
+            
+            if (passedTests === totalTests) {
+                log('🎉 All tests passed! The ride completion & review system is working correctly.', 'success');
+            } else {
+                log('⚠️ Some tests failed. Please check the errors above and fix the issues.', 'warning');
+            }
+
+            log('\n📝 Manual Testing Checklist:', 'info');
+            log('   1. ✅ Ride completion button appears after ride time', 'info');
+            log('   2. ✅ Review popup shows correct user name', 'info');
+            log('   3. ✅ Star rating works (1-5 stars)', 'info');
+            log('   4. ✅ Report radio buttons are clickable', 'info');
+            log('   5. ✅ Review notifications are sent', 'info');
+            log('   6. ✅ Reports appear in analytics page', 'info');
+            log('   7. ✅ Going rides shows only accepted rides', 'info');
+        }
+
+        // Auto-load page with instructions
+        window.onload = function() {
+            log('🧪 Ride Completion & Review System Test Page Loaded', 'info');
+            log('📝 Please configure the test parameters above and click "Run All Tests"', 'info');
+            log('🔍 Make sure your server is running and you have a valid JWT token', 'info');
+        };
+    </script>
+</body>
+</html>

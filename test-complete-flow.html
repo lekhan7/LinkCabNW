@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Complete Login Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Complete Login Flow Test</h1>
+    
+    <div class="step">
+        <h3>Step 1: Login</h3>
+        <input type="text" id="phoneNumber" placeholder="Phone Number" value="123456789">
+        <input type="password" id="password" placeholder="Password" value="123456">
+        <button onclick="testLogin()">Login</button>
+        <div id="loginResult"></div>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Verify OTP</h3>
+        <input type="text" id="otpInput" placeholder="Enter OTP" maxlength="6">
+        <input type="hidden" id="userId">
+        <button onclick="verifyOTP()">Verify OTP</button>
+        <div id="otpResult"></div>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Check Dashboard Access</h3>
+        <button onclick="checkDashboard()">Check Dashboard</button>
+        <div id="dashboardResult"></div>
+    </div>
+
+    <script>
+        let currentOTP = '';
+        let currentUserId = '';
+        
+        async function testLogin() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            resultDiv.innerHTML = 'Logging in...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phoneNumber, password }),
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentOTP = result.data.otp;
+                    currentUserId = result.data.userId;
+                    document.getElementById('userId').value = currentUserId;
+                    document.getElementById('otpInput').value = currentOTP;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Login Successful!</strong><br>
+                            OTP: ${currentOTP}<br>
+                            User ID: ${currentUserId}<br>
+                            <small>OTP copied to input field above</small>
+                        </div>
+                    `;
+                    
+                    alert(`🔔 Your OTP is: ${currentOTP}`);
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Login Failed:</strong> ${result.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function verifyOTP() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const otp = document.getElementById('otpInput').value;
+            const userId = document.getElementById('userId').value;
+            const resultDiv = document.getElementById('otpResult');
+            
+            resultDiv.innerHTML = 'Verifying OTP...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phoneNumber, otp, userId }),
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Store token and user data
+                    localStorage.setItem('token', result.data.token);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ OTP Verified!</strong><br>
+                            Token: ${result.data.token.substring(0, 20)}...<br>
+                            User: ${result.data.user.name}<br>
+                            <small>Token stored in localStorage</small>
+                        </div>
+                    `;
+                    
+                    alert('✅ OTP Verified! You can now access the dashboard.');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ OTP Verification Failed:</strong> ${result.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function checkDashboard() {
+            const token = localStorage.getItem('token');
+            const resultDiv = document.getElementById('dashboardResult');
+            
+            if (!token) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ No token found!</strong> Please verify OTP first.
+                    </div>
+                `;
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Checking dashboard access...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Dashboard Access Confirmed!</strong><br>
+                            User: ${result.data.name}<br>
+                            Phone: ${result.data.phone_number}<br>
+                            Role: ${result.data.role}<br>
+                            <small>You can now visit http://localhost:5173/dashboard</small>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Dashboard Access Denied:</strong> ${result.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

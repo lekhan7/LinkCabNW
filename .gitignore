@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+Thumbs.db
+
+SUPABASE_KEY_FIX_GUIDE.md
+ADMIN-LOGIN-FIX.md
+server/test-analytics-endpoints.js
+client/.env
+client/.env.production
+server/.env
+server/.env.example
+server/node_modules/

@@ -1,0 +1,132 @@
+@import 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light;
+  color: #2C2C2C;
+  background-color: #F5F5F5;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  font-weight: 500;
+  color: #F5C400;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #D4A000;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #F5F5F5;
+  color: #2C2C2C;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  color: #2C2C2C;
+}
+
+button {
+  border-radius: 8px;
+  border: 2px solid #F5C400;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #EEEEEE;
+  color: #2C2C2C;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+button:hover {
+  border-color: #D4A000;
+  background-color: #F5C400;
+  color: #2C2C2C;
+}
+button:focus,
+button:focus-visible {
+  outline: 2px solid #F5C400;
+  outline-offset: 2px;
+}
+
+/* Global styles for full-width layout */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Remove default margins and paddings */
+* {
+  margin: 0;
+  padding: 0;
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  button {
+    padding: 0.8em 1.4em;
+    font-size: 0.9em;
+  }
+  
+  #root {
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  button {
+    padding: 1em 1.6em;
+    font-size: 0.85em;
+  }
+}
+
+/* Touch-friendly targets */
+@media (hover: none) and (pointer: coarse) {
+  button, a, input, textarea, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Review & Report Functionality</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Review & Report Functionality Test</h1>
+    
+    <div class="container">
+        <h2>📝 Test Review Submission</h2>
+        
+        <div>
+            <label>Announcement ID:</label>
+            <input type="text" id="reviewAnnouncementId" placeholder="Enter announcement ID">
+        </div>
+        
+        <div>
+            <label>Reviewee ID:</label>
+            <input type="text" id="revieweeId" placeholder="Enter user ID to review">
+        </div>
+        
+        <div>
+            <label>Rating (1-5):</label>
+            <select id="rating">
+                <option value="">Select rating</option>
+                <option value="1">1 - Poor</option>
+                <option value="2">2 - Fair</option>
+                <option value="3">3 - Good</option>
+                <option value="4">4 - Very Good</option>
+                <option value="5">5 - Excellent</option>
+            </select>
+        </div>
+        
+        <div>
+            <label>Feedback:</label>
+            <textarea id="feedback" rows="3" placeholder="Optional feedback"></textarea>
+        </div>
+        
+        <button onclick="testReviewSubmission()">Submit Review</button>
+        <div id="reviewResult" class="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>🚨 Test Report Submission</h2>
+        
+        <div>
+            <label>Announcement ID:</label>
+            <input type="text" id="reportAnnouncementId" placeholder="Enter announcement ID">
+        </div>
+        
+        <div>
+            <label>Reported User ID:</label>
+            <input type="text" id="reportedUserId" placeholder="Enter user ID to report">
+        </div>
+        
+        <div>
+            <label>Reason:</label>
+            <select id="reportReason">
+                <option value="">Select reason</option>
+                <option value="misbehavior">Misbehavior</option>
+                <option value="no_show">No Show</option>
+                <option value="unsafe_driving">Unsafe Driving</option>
+                <option value="rude_behavior">Rude Behavior</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        
+        <div>
+            <label>Description:</label>
+            <textarea id="reportDescription" rows="3" placeholder="Optional description"></textarea>
+        </div>
+        
+        <button onclick="testReportSubmission()">Submit Report</button>
+        <div id="reportResult" class="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>🔍 Get Reviewable Users</h2>
+        
+        <div>
+            <label>Announcement ID:</label>
+            <input type="text" id="reviewableAnnouncementId" placeholder="Enter announcement ID">
+        </div>
+        
+        <button onclick="testGetReviewableUsers()">Get Reviewable Users</button>
+        <div id="reviewableResult" class="result"></div>
+    </div>
+
+    <script>
+        // Get API base URL from environment or use default
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        // Get auth token from localStorage
+        function getAuthToken() {
+            return localStorage.getItem('token');
+        }
+        
+        // Make API request
+        async function makeRequest(url, method = 'GET', data = null) {
+            const token = getAuthToken();
+            if (!token) {
+                throw new Error('No auth token found. Please login first.');
+            }
+            
+            const config = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            
+            if (data) {
+                config.body = JSON.stringify(data);
+            }
+            
+            const response = await fetch(`${API_BASE_URL}${url}`, config);
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.message || `HTTP error! status: ${response.status}`);
+            }
+            
+            return result;
+        }
+        
+        // Test review submission
+        async function testReviewSubmission() {
+            const resultDiv = document.getElementById('reviewResult');
+            resultDiv.innerHTML = '<div class="info">Testing review submission...</div>';
+            
+            try {
+                const data = {
+                    announcementId: document.getElementById('reviewAnnouncementId').value,
+                    revieweeId: document.getElementById('revieweeId').value,
+                    rating: parseInt(document.getElementById('rating').value),
+                    feedback: document.getElementById('feedback').value
+                };
+                
+                if (!data.announcementId || !data.revieweeId || !data.rating) {
+                    throw new Error('Please fill in all required fields');
+                }
+                
+                console.log('🔍 Submitting review:', data);
+                
+                const result = await makeRequest('/reviews/submit', 'POST', data);
+                
+                console.log('✅ Review submitted successfully:', result);
+                
+                resultDiv.innerHTML = `<div class="success">✅ Review submitted successfully!
+                
+Result: ${JSON.stringify(result, null, 2)}</div>`;
+                
+            } catch (error) {
+                console.error('❌ Review submission failed:', error);
+                resultDiv.innerHTML = `<div class="error">❌ Review submission failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Test report submission
+        async function testReportSubmission() {
+            const resultDiv = document.getElementById('reportResult');
+            resultDiv.innerHTML = '<div class="info">Testing report submission...</div>';
+            
+            try {
+                const data = {
+                    announcementId: document.getElementById('reportAnnouncementId').value,
+                    reportedUserId: document.getElementById('reportedUserId').value,
+                    reason: document.getElementById('reportReason').value,
+                    description: document.getElementById('reportDescription').value
+                };
+                
+                if (!data.announcementId || !data.reportedUserId || !data.reason) {
+                    throw new Error('Please fill in all required fields');
+                }
+                
+                console.log('🔍 Submitting report:', data);
+                
+                const result = await makeRequest('/reports/submit', 'POST', data);
+                
+                console.log('✅ Report submitted successfully:', result);
+                
+                resultDiv.innerHTML = `<div class="success">✅ Report submitted successfully!
+                
+Result: ${JSON.stringify(result, null, 2)}</div>`;
+                
+            } catch (error) {
+                console.error('❌ Report submission failed:', error);
+                resultDiv.innerHTML = `<div class="error">❌ Report submission failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Test get reviewable users
+        async function testGetReviewableUsers() {
+            const resultDiv = document.getElementById('reviewableResult');
+            resultDiv.innerHTML = '<div class="info">Getting reviewable users...</div>';
+            
+            try {
+                const announcementId = document.getElementById('reviewableAnnouncementId').value;
+                
+                if (!announcementId) {
+                    throw new Error('Please enter an announcement ID');
+                }
+                
+                console.log('🔍 Getting reviewable users for announcement:', announcementId);
+                
+                const result = await makeRequest(`/reviews/${announcementId}/reviewable-users`);
+                
+                console.log('✅ Reviewable users fetched:', result);
+                
+                resultDiv.innerHTML = `<div class="success">✅ Reviewable users fetched successfully!
+                
+Result: ${JSON.stringify(result, null, 2)}</div>`;
+                
+            } catch (error) {
+                console.error('❌ Failed to get reviewable users:', error);
+                resultDiv.innerHTML = `<div class="error">❌ Failed to get reviewable users: ${error.message}</div>`;
+            }
+        }
+        
+        // Check if user is logged in
+        function checkAuth() {
+            const token = getAuthToken();
+            if (!token) {
+                document.body.innerHTML = '<div class="container"><h1>❌ Not Logged In</h1><p>Please <a href="/login">login</a> first to test the review and report functionality.</p></div>';
+                return false;
+            }
+            return true;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkAuth()) {
+                console.log('🔑 Auth token found, ready to test');
+            }
+        });
+    </script>
+</body>
+</html>
