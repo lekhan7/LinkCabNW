@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../config/supabase';
 import { COLORS } from '../../utils/constants';
+import { FaBullhorn, FaStar } from 'react-icons/fa';
 
 const AdminAnalytics = () => {
   const [analytics, setAnalytics] = useState({
@@ -16,28 +17,44 @@ const AdminAnalytics = () => {
     totalReports: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('30days');
+  const [dateRange, setDateRange] = useState('7d');
+
+  const renderStars = (count, max = 5) => {
+    return (
+      <div style={{ display: 'flex', gap: '0.25rem' }}>
+        {[...Array(max)].map((_, i) => (
+          <FaStar
+            key={i}
+            style={{
+              color: i < count ? '#f5c400' : COLORS.border,
+              fontSize: '0.75rem'
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
 
   useEffect(() => {
     fetchAnalytics();
-  }, [timeRange]);
+  }, [dateRange]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       
-      // Get date range based on timeRange
+      // Get date range based on dateRange
       const now = new Date();
       let startDate;
       
-      switch (timeRange) {
-        case '7days':
+      switch (dateRange) {
+        case '7d':
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
-        case '30days':
+        case '30d':
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
-        case '90days':
+        case '90d':
           startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
           break;
         default:
@@ -241,8 +258,8 @@ const AdminAnalytics = () => {
             const percentage = total > 0 ? (count / total) * 100 : 0;
             return (
               <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '60px', fontSize: '0.875rem', color: COLORS.text }}>
-                  {'⭐'.repeat(stars)} {stars}
+                <div style={{ width: '60px', fontSize: '0.875rem', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {renderStars(stars)} {stars}
                 </div>
                 <div style={{ flex: 1, height: '24px', backgroundColor: '#E5E7EB', borderRadius: '0.25rem', overflow: 'hidden' }}>
                   <div
@@ -305,8 +322,8 @@ const AdminAnalytics = () => {
           </h1>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
               style={{
                 padding: '0.75rem 1rem',
                 border: '1px solid #E5E7EB',
@@ -314,9 +331,9 @@ const AdminAnalytics = () => {
                 fontSize: '0.875rem',
               }}
             >
-              <option value="7days">Last 7 Days</option>
-              <option value="30days">Last 30 Days</option>
-              <option value="90days">Last 90 Days</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
             </select>
           </div>
         </div>
@@ -404,7 +421,7 @@ const AdminAnalytics = () => {
                 justifyContent: 'center',
                 fontSize: '1.5rem',
               }}>
-                ⭐
+                <FaStar />
               </div>
               <div>
                 <p style={{ color: '#6B7280', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Total Reviews</p>

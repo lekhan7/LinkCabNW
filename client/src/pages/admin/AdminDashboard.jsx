@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation, Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { supabase } from '../../config/supabase';
+import { Outlet, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { COLORS } from '../../utils/constants';
+import { 
+  FaChartBar, 
+  FaUsers, 
+  FaBullhorn, 
+  FaStar, 
+  FaComments, 
+  FaExclamationTriangle, 
+  FaChartLine, 
+  FaCog,
+  FaShieldAlt,
+  FaSignOutAlt
+} from 'react-icons/fa';
+import { supabase } from '../../config/supabase';
 
 // Import admin pages
 import AdminOverview from './AdminOverview';
@@ -21,14 +33,14 @@ const AdminDashboard = () => {
   const location = useLocation();
 
   const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard Overview', icon: '📊' },
-    { path: '/admin/users', label: 'Users', icon: '👥' },
-    { path: '/admin/announcements', label: 'Announcements', icon: '📢' },
-    { path: '/admin/reviews', label: 'Reviews', icon: '⭐' },
-    { path: '/admin/feedback', label: 'Feedback', icon: '💬' },
-    { path: '/admin/reports', label: 'Reports', icon: '🚨' },
-    { path: '/admin/analytics', label: 'Analytics', icon: '📈' },
-    { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+    { path: '/admin/dashboard', label: 'Dashboard Overview', icon: <FaChartBar /> },
+    { path: '/admin/users', label: 'Users', icon: <FaUsers /> },
+    { path: '/admin/announcements', label: 'Announcements', icon: <FaBullhorn /> },
+    { path: '/admin/reviews', label: 'Reviews', icon: <FaStar /> },
+    { path: '/admin/feedback', label: 'Feedback', icon: <FaComments /> },
+    { path: '/admin/reports', label: 'Reports', icon: <FaExclamationTriangle /> },
+    { path: '/admin/analytics', label: 'Analytics', icon: <FaChartLine /> },
+    { path: '/admin/settings', label: 'Settings', icon: <FaCog /> },
   ];
 
   useEffect(() => {
@@ -100,12 +112,6 @@ const AdminDashboard = () => {
           />
           <p style={{ color: COLORS.text }}>Loading admin dashboard...</p>
         </div>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
@@ -143,7 +149,7 @@ const AdminDashboard = () => {
               justifyContent: 'center',
               fontSize: '1.5rem',
             }}>
-              🛡️
+              <FaShieldAlt />
             </div>
             {sidebarOpen && (
               <motion.div
@@ -234,7 +240,7 @@ const AdminDashboard = () => {
               e.target.style.transform = 'translateY(0)';
             }}
           >
-            <span>🚪</span>
+            <span><FaSignOutAlt /></span>
             {sidebarOpen && <span>Logout</span>}
           </button>
         </div>

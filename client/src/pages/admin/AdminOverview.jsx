@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../config/supabase';
 import { COLORS } from '../../utils/constants';
+import { 
+  FaUsers, 
+  FaBullhorn, 
+  FaCar, 
+  FaHandshake, 
+  FaExclamationTriangle, 
+  FaStar, 
+  FaBell 
+} from 'react-icons/fa';
 
 const AdminOverview = () => {
   const [stats, setStats] = useState({
@@ -92,25 +101,25 @@ const AdminOverview = () => {
           type: 'announcement',
           message: `${item.creator_name} created ride from ${item.from_location} to ${item.to_location}`,
           time: item.created_at,
-          icon: '📢'
+          icon: <FaBullhorn />
         })) || [],
         ...recentReviews.data?.map(item => ({
           type: 'review',
-          message: `${item.reviewer_name} reviewed ${item.reviewed_user_name} (${item.rating}⭐)`,
+          message: `${item.reviewer_name} reviewed ${item.reviewed_user_name} (${item.rating}<FaStar />)`,
           time: item.created_at,
-          icon: '⭐'
+          icon: <FaStar />
         })) || [],
         ...recentReports.data?.map(item => ({
           type: 'report',
           message: `${item.reporter_name} reported ${item.reported_user_name}: ${item.reason}`,
           time: item.created_at,
-          icon: '🚨'
+          icon: <FaExclamationTriangle />
         })) || [],
         ...recentJoinRequests.data?.map(item => ({
           type: 'join_request',
           message: `${item.passenger_name} requested to join ride (${item.status})`,
           time: item.created_at,
-          icon: '🤝'
+          icon: <FaHandshake />
         })) || []
       ];
 
@@ -140,13 +149,13 @@ const AdminOverview = () => {
   };
 
   const statCards = [
-    { label: 'Total Users', value: stats.totalUsers, icon: '👥', color: '#3B82F6' },
-    { label: 'Total Announcements', value: stats.totalAnnouncements, icon: '📢', color: '#10B981' },
-    { label: 'Active Rides', value: stats.activeRides, icon: '🚗', color: '#F59E0B' },
-    { label: 'Join Requests', value: stats.totalJoinRequests, icon: '🤝', color: '#8B5CF6' },
-    { label: 'Total Reports', value: stats.totalReports, icon: '🚨', color: '#EF4444' },
-    { label: 'Total Reviews', value: stats.totalReviews, icon: '⭐', color: '#F59E0B' },
-    { label: 'Notifications', value: stats.totalNotifications, icon: '🔔', color: '#06B6D4' },
+    { label: 'Total Users', value: stats.totalUsers, icon: <FaUsers />, color: '#3B82F6' },
+    { label: 'Total Announcements', value: stats.totalAnnouncements, icon: <FaBullhorn />, color: '#10B981' },
+    { label: 'Active Rides', value: stats.activeRides, icon: <FaCar />, color: '#F59E0B' },
+    { label: 'Join Requests', value: stats.totalJoinRequests, icon: <FaHandshake />, color: '#8B5CF6' },
+    { label: 'Total Reports', value: stats.totalReports, icon: <FaExclamationTriangle />, color: '#EF4444' },
+    { label: 'Total Reviews', value: stats.totalReviews, icon: <FaStar />, color: '#F59E0B' },
+    { label: 'Notifications', value: stats.totalNotifications, icon: <FaBell />, color: '#06B6D4' },
   ];
 
   if (loading) {

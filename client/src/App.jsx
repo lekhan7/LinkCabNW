@@ -22,6 +22,7 @@ import CoPassengerDetailsManagement from './pages/CoPassengerDetailsPage';
 import MyAnnouncements from './pages/MyAnnouncements';
 import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
+import AnalyticsNew from './pages/AnalyticsNew';
 import Profile from './pages/Profile';
 import FavoriteRides from './pages/FavoriteRides';
 import AnnouncementDetails from './pages/AnnouncementDetails';
@@ -162,7 +163,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-                    <Route
+          <Route
             path="/create-announcement"
             element={
               <ProtectedRoute>
@@ -274,7 +275,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-                    <Route
+          <Route
             path="/analytics"
             element={
               <ProtectedRoute>
@@ -285,7 +286,7 @@ function App() {
                   variants={pageVariants}
                   transition={pageTransition}
                 >
-                  <Analytics />
+                  <AnalyticsNew />
                 </motion.div>
               </ProtectedRoute>
             }
@@ -322,6 +323,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
 
           {/* Legal & Support Routes */}
           <Route

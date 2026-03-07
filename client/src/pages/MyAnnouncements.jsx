@@ -204,35 +204,39 @@ const MyAnnouncements = () => {
 
   const handleCompleteRide = async (announcementId, completionType) => {
     try {
-      const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
-      success(response.message || 'Ride completion recorded successfully');
+      // First fetch reviewable users and show review modal
+      const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
+      console.log('🔍 Reviewable users response:', reviewableResponse);
+      const users = reviewableResponse.users || reviewableResponse.data?.users || [];
+      console.log('👥 Extracted users:', users);
       
-      // Update completion status
-      setCompletionStatuses(prev => ({
-        ...prev,
-        [announcementId]: response.data
-      }));
-      
-      // Refresh data
-      fetchMyAnnouncements();
-      
-      // Fetch reviewable users and show review modal if ride is ready for reviews
-      if (response.data.completion_status === 'pending_completion' || response.data.completion_status === 'completed') {
-        try {
-          const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
-          console.log('🔍 Reviewable users response:', reviewableResponse);
-          const users = reviewableResponse.users || reviewableResponse.data?.users || [];
-          console.log('👥 Extracted users:', users);
-          setReviewableUsers(users);
-          setSelectedAnnouncement(myRides.find(r => r.id === announcementId) || goingRides.find(r => r.id === announcementId));
-          setShowReviewModal(true);
-        } catch (reviewError) {
-          console.error('Error fetching reviewable users:', reviewError);
-        }
+      if (users.length > 0) {
+        // Store the completion data for later use after reviews
+        setReviewableUsers(users);
+        setSelectedAnnouncement(myRides.find(r => r.id === announcementId) || goingRides.find(r => r.id === announcementId));
+        
+        // Store completion info to use after reviews are done
+        window.pendingCompletion = { announcementId, completionType };
+        
+        setShowReviewModal(true);
+        success('Please complete reviews for all co-passengers first');
+      } else {
+        // No users to review, complete the ride directly
+        const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
+        success(response.message || 'Ride completion recorded successfully');
+        
+        // Update completion status
+        setCompletionStatuses(prev => ({
+          ...prev,
+          [announcementId]: response.data
+        }));
+        
+        // Refresh data
+        fetchMyAnnouncements();
       }
     } catch (err) {
-      console.error('Error completing ride:', err);
-      error(err.message || 'Failed to complete ride');
+      console.error('Error in handleCompleteRide:', err);
+      error(err.message || 'Failed to initiate ride completion');
     }
   };
 
@@ -240,8 +244,50 @@ const MyAnnouncements = () => {
     try {
       await reviewAPI.submitReview(reviewData);
       success('Review submitted successfully!');
-      setShowReviewModal(false);
-      setReviewableUsers([]);
+      
+      // Check if there are more users to review
+      const remainingUsers = reviewableUsers.filter(u => {
+        const userData = u.users || u;
+        return userData.id !== reviewData.revieweeId;
+      });
+      
+      if (remainingUsers.length === 0) {
+        // All reviews completed, now complete the ride
+        console.log('🎉 All reviews completed, completing ride');
+        
+        if (window.pendingCompletion) {
+          const { announcementId, completionType } = window.pendingCompletion;
+          
+          try {
+            const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
+            success(response.message || 'Ride completed successfully!');
+            
+            // Update completion status
+            setCompletionStatuses(prev => ({
+              ...prev,
+              [announcementId]: response.data
+            }));
+            
+            // Refresh data
+            fetchMyAnnouncements();
+            
+            // Clear pending completion
+            window.pendingCompletion = null;
+            
+          } catch (completionError) {
+            console.error('Error completing ride after reviews:', completionError);
+            error(completionError.message || 'Failed to complete ride');
+          }
+        }
+        
+        // Close review modal
+        setShowReviewModal(false);
+        setReviewableUsers([]);
+      } else {
+        // Continue with next user
+        setReviewableUsers(remainingUsers);
+        // Modal will auto-select next user
+      }
     } catch (err) {
       console.error('Error submitting review:', err);
       error(err.message || 'Failed to submit review');
@@ -1285,6 +1331,8 @@ const MyAnnouncements = () => {
         onClose={() => {
           setShowReviewModal(false);
           setReviewableUsers([]);
+          // Clear pending completion if user closes modal manually
+          window.pendingCompletion = null;
         }}
         announcementId={selectedAnnouncement?.id}
         reviewableUsers={reviewableUsers}

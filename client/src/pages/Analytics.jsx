@@ -101,11 +101,11 @@ const Analytics = () => {
     const userId = session.user.id;
     const subscriptions = [];
     
-    // Subscribe to reviews table for new reviews
+    // Subscribe to review_details table for new reviews
     const reviewsSubscription = supabase
       .channel('analytics-reviews')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'reviews', filter: `reviewee_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'review_details', filter: `reviewee_id=eq.${userId}` },
         (payload) => {
           console.log('Review change:', payload);
           fetchUserAnalytics(); // Refresh analytics when review changes
@@ -114,48 +114,6 @@ const Analytics = () => {
       .subscribe();
     
     subscriptions.push(reviewsSubscription);
-
-    // Subscribe to reports table for new reports
-    const reportsSubscription = supabase
-      .channel('analytics-reports')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'reports', filter: `reported_user_id=eq.${userId}` },
-        (payload) => {
-          console.log('Report change:', payload);
-          fetchUserAnalytics(); // Refresh analytics when report changes
-        }
-      )
-      .subscribe();
-    
-    subscriptions.push(reportsSubscription);
-
-    // Subscribe to announcements table for user's rides
-    const announcementsSubscription = supabase
-      .channel('analytics-announcements')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'announcements', filter: `created_by=eq.${userId}` },
-        (payload) => {
-          console.log('Announcement change:', payload);
-          fetchUserAnalytics(); // Refresh analytics when announcement changes
-        }
-      )
-      .subscribe();
-    
-    subscriptions.push(announcementsSubscription);
-
-    // Subscribe to announcement_completion_status for completed rides
-    const completionSubscription = supabase
-      .channel('analytics-completion')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'announcement_completion_status', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          console.log('Completion change:', payload);
-          fetchUserAnalytics(); // Refresh analytics when completion changes
-        }
-      )
-      .subscribe();
-    
-    subscriptions.push(completionSubscription);
 
     // Store subscriptions for cleanup
     return subscriptions;
@@ -176,75 +134,74 @@ const Analytics = () => {
     try {
       setLoading(true);
       
-      // Use the new API to get rating analytics and reports
-      const [ratingResponse, reviewsResponse, completedRidesResponse, reportsResponse] = await Promise.all([
-        userAnalyticsAPI.getRatingAnalytics(session.user.id),
-        userAnalyticsAPI.getUserReviews(session.user.id, { limit: 10 }),
-        userAnalyticsAPI.getCompletedRides(session.user.id, { limit: 50 }),
-        reportAPI.getReportsAgainstMe()
-      ]);
+      // Fetch reviews directly from review_details table
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('review_details')
+        .select(`
+          *,
+          users!review_details_user_id_fkey (name)
+        `)
+        .eq('reviewee_id', session.user.id) // Get reviews where current user was reviewed
+        .order('created_at', { ascending: false });
 
-      const ratingData = ratingResponse.data;
-      const reviewsData = reviewsResponse.data?.reviews || [];
-      const completedRidesData = completedRidesResponse.data?.rides || [];
-      const reportsData = reportsResponse.data || [];
+      if (reviewsError) {
+        console.error('Failed to fetch reviews:', reviewsError);
+        throw reviewsError;
+      }
 
-      // Calculate additional stats from completed rides
-      const ridesCreated = completedRidesData.filter(ride => ride.role === 'creator').length;
-      const ridesJoined = completedRidesData.filter(ride => ride.role === 'participant').length;
-      const totalCompleted = completedRidesData.length;
+      // Calculate stats from reviews
+      const totalReviews = reviews?.length || 0;
+      const averageRating = totalReviews > 0 
+        ? reviews.reduce((sum, r) => sum + r.stars, 0) / totalReviews 
+        : 0;
 
-      // Get current month stats
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const thisMonthRides = completedRidesData.filter(ride => 
-        ride.completed_at?.startsWith(currentMonth)
-      );
-      const ridesCreatedThisMonth = thisMonthRides.filter(ride => ride.role === 'creator').length;
-      const ridesJoinedThisMonth = thisMonthRides.filter(ride => ride.role === 'participant').length;
+      // Calculate star distribution
+      const starDistribution = {
+        '5_star': 0,
+        '4_star': 0,
+        '3_star': 0,
+        '2_star': 0,
+        '1_star': 0
+      };
+
+      reviews?.forEach(review => {
+        const starKey = `${review.stars}_star`;
+        if (starDistribution[starKey] !== undefined) {
+          starDistribution[starKey]++;
+        }
+      });
 
       setAnalytics({
         profileStats: {
-          totalReviews: ratingData.analytics?.total_reviews_received || 0,
-          totalReports: ratingData.analytics?.total_reports_received || 0,
-          ridesCreated: ridesCreated,
-          ridesJoined: ridesJoined,
-          ridesCompleted: totalCompleted,
-          ridesCancelled: 0 // TODO: Add cancelled rides tracking
+          totalReviews: totalReviews,
+          totalReports: 0, // Not tracking reports separately anymore
+          ridesCreated: 0,
+          ridesJoined: 0,
+          ridesCompleted: 0,
+          ridesCancelled: 0
         },
         performanceStats: {
-          completionRate: totalCompleted > 0 ? 100 : 0, // TODO: Calculate actual completion rate
-          joinRate: ridesCreated > 0 ? ((ridesJoined / ridesCreated) * 100).toFixed(1) : 0,
-          averageRating: ratingData.analytics?.average_rating || 0,
-          totalRatingCount: ratingData.analytics?.total_reviews_received || 0
+          completionRate: 0,
+          joinRate: 0,
+          averageRating: averageRating,
+          totalRatingCount: totalReviews
         },
         activityStats: {
-          ridesCreatedThisMonth: ridesCreatedThisMonth,
-          ridesJoinedThisMonth: ridesJoinedThisMonth,
-          completedRidesThisMonth: thisMonthRides.length,
-          reportsThisMonth: 0 // TODO: Add monthly reports tracking
+          ridesCreatedThisMonth: 0,
+          ridesJoinedThisMonth: 0,
+          completedRidesThisMonth: 0,
+          reportsThisMonth: 0
         },
-        reviews: reviewsData.map(review => ({
-          rating: review.rating,
-          feedback: review.feedback,
+        reviews: reviews?.map(review => ({
+          rating: review.stars,
+          feedback: review.review_description,
+          reportType: review.report_type,
+          reportDescription: review.report_description,
           createdAt: review.created_at,
-          reviewerName: review.reviewer?.name || 'Anonymous'
-        })),
-        reports: reportsData.map(report => ({
-          reason: report.category,
-          description: report.description,
-          createdAt: report.created_at,
-          reporterName: report.reporter?.name || 'Anonymous',
-          announcementTitle: report.announcement ? 
-            `${report.announcement.start_location_name} → ${report.announcement.destination_name}` : 
-            'Unknown Ride'
-        })),
-        starDistribution: ratingData.analytics?.star_distribution || {
-          '5_star': 0,
-          '4_star': 0,
-          '3_star': 0,
-          '2_star': 0,
-          '1_star': 0
-        }
+          reviewerName: review.users?.name || 'Anonymous'
+        })) || [],
+        reports: [], // Not showing reports anymore
+        starDistribution
       });
 
     } catch (error) {
@@ -369,196 +326,15 @@ const Analytics = () => {
           marginBottom: '0.5rem',
           textAlign: 'center'
         }}>
-          Your Analytics
+          Your Reviews
         </h1>
         <p style={{ 
           color: COLORS.textSecondary,
           textAlign: 'center',
           marginBottom: '2rem'
         }}>
-          Track your travel statistics and performance
+          Track your reviews and ratings
         </p>
-
-        {/* Profile Stats Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '12px',
-            padding: '1.5rem',
-            marginBottom: '2rem'
-          }}
-        >
-          <h2 style={{ 
-            color: COLORS.text, 
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            marginBottom: '1.5rem',
-            textAlign: 'center'
-          }}>
-            Profile Stats
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '1rem'
-          }}>
-            <StatCard 
-              title="Reviews Received" 
-              value={analytics.profileStats.totalReviews} 
-              icon={FaStar}
-              color="#f59e0b"
-            />
-            <StatCard 
-              title="Reports Against You" 
-              value={analytics.profileStats.totalReports} 
-              icon={FaExclamationTriangle}
-              color="#ef4444"
-            />
-            <StatCard 
-              title="Rides Created" 
-              value={analytics.profileStats.ridesCreated} 
-              icon={FaRoute}
-              color="#3b82f6"
-            />
-            <StatCard 
-              title="Rides Joined" 
-              value={analytics.profileStats.ridesJoined} 
-              icon={FaUsers}
-              color="#10b981"
-            />
-            <StatCard 
-              title="Rides Completed" 
-              value={analytics.profileStats.ridesCompleted} 
-              icon={FaCheckCircle}
-              color="#10b981"
-            />
-            <StatCard 
-              title="Rides Cancelled" 
-              value={analytics.profileStats.ridesCancelled} 
-              icon={FaUserTimes}
-              color="#ef4444"
-            />
-          </div>
-        </motion.div>
-
-        {/* Performance Stats Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '12px',
-            padding: '1.5rem',
-            marginBottom: '2rem'
-          }}
-        >
-          <h2 style={{ 
-            color: COLORS.text, 
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            marginBottom: '1.5rem',
-            textAlign: 'center'
-          }}>
-            Performance Stats
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem'
-          }}>
-            <StatCard 
-              title="Completion Rate" 
-              value={`${analytics.performanceStats.completionRate}%`} 
-              icon={FaChartLine}
-              color="#10b981"
-              subtitle="Of joined rides"
-            />
-            <StatCard 
-              title="Join Rate" 
-              value={`${analytics.performanceStats.joinRate}%`} 
-              icon={FaUserCheck}
-              color="#3b82f6"
-              subtitle="Of your rides"
-            />
-            <StatCard 
-              title="Average Rating" 
-              value={analytics.performanceStats.averageRating.toFixed(1)} 
-              icon={FaStar}
-              color="#f59e0b"
-              subtitle={`${analytics.performanceStats.totalRatingCount} ratings`}
-            />
-            <StatCard 
-              title="Total Ratings" 
-              value={analytics.performanceStats.totalRatingCount} 
-              icon={FaUsers}
-              color="#8b5cf6"
-            />
-          </div>
-        </motion.div>
-
-        {/* Monthly Activity Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '12px',
-            padding: '1.5rem',
-            marginBottom: '2rem'
-          }}
-        >
-          <h2 style={{ 
-            color: COLORS.text, 
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            marginBottom: '1.5rem',
-            textAlign: 'center'
-          }}>
-            <FaCalendarAlt style={{ marginRight: '0.5rem' }} />
-            This Month's Activity
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '1rem'
-          }}>
-            <StatCard 
-              title="Rides Created" 
-              value={analytics.activityStats.ridesCreatedThisMonth} 
-              icon={FaRoute}
-              color="#3b82f6"
-            />
-            <StatCard 
-              title="Rides Joined" 
-              value={analytics.activityStats.ridesJoinedThisMonth} 
-              icon={FaUsers}
-              color="#10b981"
-            />
-            <StatCard 
-              title="Completed Rides" 
-              value={analytics.activityStats.completedRidesThisMonth} 
-              icon={FaCheckCircle}
-              color="#10b981"
-            />
-            <StatCard 
-              title="Reports" 
-              value={analytics.activityStats.reportsThisMonth} 
-              icon={FaExclamationTriangle}
-              color="#ef4444"
-            />
-          </div>
-        </motion.div>
 
         {/* Reviews Section */}
         <motion.div
@@ -702,89 +478,37 @@ const Analytics = () => {
                   <div style={{ marginTop: '0.75rem', color: COLORS.textSecondary, lineHeight: 1.5 }}>
                     "{r.feedback || ''}"
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
 
-        {/* Reports Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '12px',
-            padding: '1.5rem',
-            marginBottom: '2rem'
-          }}
-        >
-          <h2 style={{
-            color: COLORS.text,
-            fontSize: '1.5rem',
-            fontWeight: '600',
-            marginBottom: '1rem',
-            textAlign: 'center'
-          }}>
-            <FaFlag style={{ marginRight: '0.5rem', color: '#ef4444' }} />
-            Reports Against You
-          </h2>
-
-          {(!analytics.reports || analytics.reports.length === 0) ? (
-            <div style={{ textAlign: 'center', color: COLORS.textSecondary }}>
-              <FaFlag style={{ fontSize: '3rem', marginBottom: '1rem', color: COLORS.border }} />
-              <div>No reports filed against you. Keep up the good work! 🎉</div>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {analytics.reports.map((report, idx) => (
-                <div
-                  key={`${report.reporterName || 'report'}_${report.createdAt || idx}`}
-                  style={{
-                    backgroundColor: COLORS.background,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ color: COLORS.text, fontWeight: '800' }}>
-                      {report.reporterName || 'Unknown'}
-                    </div>
-                    <div style={{ color: COLORS.textSecondary, fontSize: '0.85rem' }}>
-                      {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ''}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    <FaFlag style={{ color: '#ef4444', fontSize: '0.875rem' }} />
-                    <div style={{ 
-                      marginLeft: '0.5rem', 
-                      fontWeight: '600', 
-                      color: COLORS.text,
-                      textTransform: 'capitalize'
-                    }}>
-                      {report.reason?.replace('_', ' ') || 'Unknown reason'}
-                    </div>
-                  </div>
-
-                  {report.description && (
-                    <div style={{ marginTop: '0.75rem', color: COLORS.textSecondary, lineHeight: 1.5 }}>
-                      "{report.description}"
+                  {r.reportType && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        marginBottom: '0.25rem',
+                        color: COLORS.text,
+                        fontWeight: '600'
+                      }}>
+                        <FaFlag style={{ color: '#ef4444', fontSize: '0.875rem' }} />
+                        Report Type: <span style={{ textTransform: 'capitalize' }}>{r.reportType}</span>
+                      </div>
+                      {r.reportDescription && (
+                        <div style={{ 
+                          color: COLORS.textSecondary, 
+                          fontSize: '0.875rem',
+                          fontStyle: 'italic'
+                        }}>
+                          "{r.reportDescription}"
+                        </div>
+                      )}
                     </div>
                   )}
-
-                  <div style={{ marginTop: '0.5rem', color: COLORS.textMuted, fontSize: '0.85rem' }}>
-                    Ride: {report.announcementTitle}
-                  </div>
                 </div>
               ))}
             </div>
           )}
         </motion.div>
+
       </motion.div>
     </div>
   );

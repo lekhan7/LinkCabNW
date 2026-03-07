@@ -219,7 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_ride_reports_reporter_id ON ride_reports(reporter
 CREATE INDEX IF NOT EXISTS idx_ride_reports_reported_user_id ON ride_reports(reported_user_id);
 CREATE INDEX IF NOT EXISTS idx_ride_reports_status ON ride_reports(status);
 
--- Enhanced completion status function
+-- Enhanced completion status function - requires ALL passengers to complete AND provide feedback
 CREATE OR REPLACE FUNCTION update_ride_completion_status(
     announcement_uuid UUID,
     user_uuid UUID,
@@ -229,8 +229,10 @@ RETURNS JSON AS $$
 DECLARE
     completion_record RECORD;
     all_participants_completed BOOLEAN;
+    all_participants_reviewed BOOLEAN;
     participant_count INTEGER;
     completed_count INTEGER;
+    reviewed_count INTEGER;
     result JSON;
 BEGIN
     -- Insert or update completion status
@@ -258,15 +260,46 @@ BEGIN
     
     all_participants_completed := (participant_count = completed_count);
     
-    -- If all completed, update announcement status
-    IF all_participants_completed THEN
+    -- Check if all participants have provided reviews/feedback
+    WITH all_possible_reviews AS (
+        -- Get all possible reviewer-reviewee combinations (excluding self-reviews)
+        SELECT 
+            acs.user_id as reviewer_id,
+            other_acs.user_id as reviewee_id
+        FROM announcement_completion_status acs
+        JOIN announcement_completion_status other_acs ON acs.announcement_id = other_acs.announcement_id
+        WHERE acs.announcement_id = announcement_uuid
+        AND acs.user_id != other_acs.user_id
+    ),
+    existing_reviews AS (
+        -- Get all existing reviews
+        SELECT 
+            reviewer_id,
+            reviewee_id
+        FROM reviews
+        WHERE ride_id = announcement_uuid
+    )
+    SELECT 
+        COUNT(*) as total_possible_reviews,
+        COUNT(DISTINCT CONCAT(reviewer_id::TEXT, '-', reviewee_id::TEXT)) as existing_review_count
+    INTO participant_count, reviewed_count
+    FROM all_possible_reviews ap
+    LEFT JOIN existing_reviews er ON ap.reviewer_id = er.reviewer_id AND ap.reviewee_id = er.reviewee_id;
+    
+    -- All participants reviewed when every possible review combination exists
+    all_participants_reviewed := (reviewed_count >= participant_count);
+    
+    -- Only mark announcement as completed when BOTH conditions are met:
+    -- 1. All participants have completed the ride
+    -- 2. All participants have provided feedback for each other
+    IF all_participants_completed AND all_participants_reviewed THEN
         UPDATE announcements 
         SET 
             ride_completed = true,
             completed_at = CURRENT_TIMESTAMP
         WHERE id = announcement_uuid;
         
-        -- Create notifications for all participants to leave reviews
+        -- Create completion notifications for all participants
         INSERT INTO notifications (
             recipient_id,
             sender_id,
@@ -280,9 +313,9 @@ BEGIN
         SELECT 
             acs.user_id,
             a.created_by,
-            'ride_completed_for_review',
-            'Ride Completed - Leave a Review',
-            'The ride has been completed. Please rate your experience with other participants.',
+            'ride_fully_completed',
+            'Ride Fully Completed',
+            'All participants have completed the ride and provided feedback. Thank you for using LinkCab!',
             announcement_uuid,
             false,
             CURRENT_TIMESTAMP
@@ -294,10 +327,17 @@ BEGIN
     -- Return completion status
     result := json_build_object(
         'success', true,
-        'completion_status', CASE WHEN all_participants_completed THEN 'completed' ELSE 'pending_completion' END,
+        'completion_status', CASE 
+            WHEN all_participants_completed AND all_participants_reviewed THEN 'completed' 
+            WHEN all_participants_completed THEN 'pending_reviews' 
+            ELSE 'pending_completion' 
+        END,
         'participant_count', participant_count,
         'completed_count', completed_count,
-        'all_completed', all_participants_completed
+        'reviewed_count', reviewed_count,
+        'all_completed', all_participants_completed AND all_participants_reviewed,
+        'all_participants_completed', all_participants_completed,
+        'all_participants_reviewed', all_participants_reviewed
     );
     
     RETURN result;
@@ -586,7 +626,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to check if user can complete ride
+-- Function to check if user can complete ride and show completion/review status
 CREATE OR REPLACE FUNCTION can_complete_ride(announcement_uuid UUID, user_uuid UUID)
 RETURNS JSON AS $$
 DECLARE
@@ -597,6 +637,12 @@ DECLARE
     is_participant BOOLEAN;
     can_complete BOOLEAN;
     completion_type VARCHAR;
+    all_participants_completed BOOLEAN;
+    all_participants_reviewed BOOLEAN;
+    completed_count INTEGER;
+    total_participants INTEGER;
+    reviewed_count INTEGER;
+    total_possible_reviews INTEGER;
 BEGIN
     -- Get announcement details
     SELECT * INTO announcement_record
@@ -645,12 +691,55 @@ BEGIN
         can_complete := false;
     END IF;
     
+    -- Get completion and review statistics
+    SELECT 
+        COUNT(*) as total_participants,
+        COUNT(*) FILTER (WHERE completed = true) as completed_participants
+    INTO total_participants, completed_count
+    FROM announcement_completion_status 
+    WHERE announcement_id = announcement_uuid;
+    
+    all_participants_completed := (total_participants = completed_count);
+    
+    -- Check review status
+    WITH all_possible_reviews AS (
+        SELECT 
+            acs.user_id as reviewer_id,
+            other_acs.user_id as reviewee_id
+        FROM announcement_completion_status acs
+        JOIN announcement_completion_status other_acs ON acs.announcement_id = other_acs.announcement_id
+        WHERE acs.announcement_id = announcement_uuid
+        AND acs.user_id != other_acs.user_id
+    ),
+    existing_reviews AS (
+        SELECT 
+            reviewer_id,
+            reviewee_id
+        FROM reviews
+        WHERE ride_id = announcement_uuid
+    )
+    SELECT 
+        COUNT(*) as total_possible,
+        COUNT(DISTINCT CONCAT(reviewer_id::TEXT, '-', reviewee_id::TEXT)) as existing_count
+    INTO total_possible_reviews, reviewed_count
+    FROM all_possible_reviews ap
+    LEFT JOIN existing_reviews er ON ap.reviewer_id = er.reviewer_id AND ap.reviewee_id = er.reviewee_id;
+    
+    all_participants_reviewed := (reviewed_count >= total_possible_reviews);
+    
     RETURN json_build_object(
         'can_complete', can_complete,
         'completion_type', completion_type,
         'is_creator', is_creator,
         'is_participant', is_participant,
-        'already_completed', COALESCE(completion_record.completed, false)
+        'already_completed', COALESCE(completion_record.completed, false),
+        'all_participants_completed', all_participants_completed,
+        'all_participants_reviewed', all_participants_reviewed,
+        'total_participants', total_participants,
+        'completed_count', completed_count,
+        'total_possible_reviews', total_possible_reviews,
+        'reviewed_count', reviewed_count,
+        'is_time_passed', (announcement_record.date || ' ' || announcement_record.time)::TIMESTAMP <= CURRENT_TIMESTAMP
     );
 END;
 $$ LANGUAGE plpgsql;

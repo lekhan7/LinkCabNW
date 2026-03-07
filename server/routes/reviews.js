@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/supabase');
+const { supabase, supabaseAdmin } = require('../config/supabase');
 const jwt = require('jsonwebtoken');
 const indexExports = require('../index');
 const io = indexExports.io;
@@ -269,14 +269,16 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Submit review using the new database function
+// Submit review using the new review_details table
 router.post('/submit', authenticateToken, async (req, res) => {
   try {
     const { 
       announcementId, 
       revieweeId, 
       rating, 
-      feedback
+      reviewDescription,
+      reportType,
+      reportDescription
     } = req.body;
 
     if (!announcementId || !revieweeId || !rating) {
@@ -286,155 +288,74 @@ router.post('/submit', authenticateToken, async (req, res) => {
       });
     }
 
-    // First try the RPC function
-    console.log('🔍 Attempting to submit review with data:', {
+    console.log('🔍 Submitting review to review_details table:', {
       announcementId,
       revieweeId,
       rating,
-      feedback,
+      reviewDescription,
+      reportType,
+      reportDescription,
       reviewerId: req.user.id
     });
 
-    let { data: result, error } = await supabase
-      .rpc('submit_review', { 
-        ride_uuid: announcementId,
-        reviewer_uuid: req.user.id,
-        reviewee_uuid: revieweeId,
-        rating: rating,
-        feedback: feedback
-      });
+    // Insert into review_details table
+    const { data: newReview, error: insertError } = await supabaseAdmin
+      .from('review_details')
+      .insert({
+        user_id: req.user.id, // Person writing the review
+        reviewee_id: revieweeId, // Person being reviewed
+        announcement_id: announcementId, // The ride/announcement
+        stars: rating,
+        review_description: reviewDescription,
+        report_type: reportType,
+        report_description: reportDescription
+      })
+      .select()
+      .single();
 
-    console.log('📊 RPC function result:', { result, error });
-
-    // If RPC function doesn't exist, use fallback logic
-    if (error && error.message.includes('function "submit_review" does not exist')) {
-      console.log('RPC function not found, using fallback logic...');
-      
-      // Check if review already exists
-      const { data: existingReview } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('ride_id', announcementId)
-        .eq('reviewer_id', req.user.id)
-        .eq('reviewee_id', revieweeId)
-        .single();
-
-      if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'You have already reviewed this user for this ride'
-        });
-      }
-
-      // Insert the review directly into the correct reviews table
-      console.log('🔄 Using fallback logic to insert review...');
-      const { data: newReview, error: insertError } = await supabase
-        .from('reviews')
-        .insert({
-          ride_id: announcementId,
-          reviewer_id: req.user.id,
-          reviewee_id: revieweeId,
-          rating: rating,
-          feedback: feedback,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      console.log('💾 Insert result:', { newReview, insertError });
-
-      if (insertError) {
-        console.error('Failed to submit review:', insertError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to submit review'
-        });
-      }
-
-      console.log('✅ Review inserted successfully, updating user ratings...');
-
-      // Update the reviewee's average rating using the correct reviews table
-      const { data: reviews } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('reviewee_id', revieweeId);
-
-      console.log('📈 Found reviews for rating calculation:', reviews.length);
-
-      const averageRating = reviews.length > 0 
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
-        : 0;
-
-      const updateResult = await supabase
-        .from('users')
-        .update({
-          average_rating: averageRating,
-          total_reviews: reviews.length
-        })
-        .eq('id', revieweeId);
-
-      console.log('🔄 User rating update result:', updateResult);
-
-      result = { success: true, new_average_rating: averageRating };
-      error = null;
-    }
-
-    if (error) {
-      console.error('❌ RPC function failed:', error);
-      console.log('🔍 Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
+    if (insertError) {
+      console.error('❌ Failed to insert review:', insertError);
       return res.status(500).json({
         success: false,
         message: 'Failed to submit review'
       });
     }
 
-    if (!result.success) {
-      console.error('❌ Function returned failure:', result);
-      return res.status(400).json({
-        success: false,
-        message: result.error || 'Failed to submit review'
-      });
-    }
-
-    console.log('🎉 Review submission successful:', result);
+    console.log('✅ Review inserted successfully into review_details:', newReview);
 
     // Send real-time notification to reviewee
     if (io) {
       io.to(`user-${revieweeId}`).emit('new_review', {
         type: 'NEW_REVIEW',
-        title: 'You received a new review! ⭐',
-        message: `${req.user.name || 'A user'} reviewed you for your recent ride`,
+        title: 'You received a new review for your ride.',
+        message: `Reviewer: ${req.user.name || 'A user'}\nRating: ${rating} stars\nReview: ${reviewDescription || 'No description provided'}`,
         rating: rating,
-        feedback: feedback,
+        reviewDescription: reviewDescription,
         announcement_id: announcementId,
         reviewer_name: req.user.name
       });
     }
 
-    // Create notification in database
+    // Create notification in database for persistence
     try {
-      const notificationResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:5000'}/api/notifications/review`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1]}`
-        },
-        body: JSON.stringify({
-          recipientId: revieweeId,
-          reviewerName: req.user.name || 'A user',
-          rating: rating,
-          feedback: feedback,
-          announcementId: announcementId
-        })
-      });
-      
-      if (!notificationResponse.ok) {
-        console.error('Failed to create review notification:', notificationResponse.statusText);
+      const { data: notificationData, error: notificationError } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          recipient_id: revieweeId,
+          sender_id: req.user.id,
+          type: 'NEW_REVIEW',
+          title: 'New Ride Review',
+          message: `You received a new review for your ride.\n\nReviewer: ${req.user.name || 'A user'}\nStar Rating: ${rating}\nReview Description: ${reviewDescription || 'No description provided'}`,
+          announcement_id: announcementId,
+          is_read: false,
+          status: 'completed',
+          created_at: new Date().toISOString()
+        });
+
+      if (notificationError) {
+        console.error('Failed to create review notification:', notificationError);
+      } else {
+        console.log('✅ Review notification created successfully');
       }
     } catch (notifError) {
       console.error('Error creating review notification:', notifError);
@@ -442,10 +363,8 @@ router.post('/submit', authenticateToken, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: result.message,
-      data: {
-        new_average_rating: result.new_average_rating
-      }
+      message: 'Review submitted successfully',
+      data: newReview
     });
 
   } catch (error) {
@@ -475,7 +394,8 @@ router.get('/:rideId/reviewable-users', authenticateToken, async (req, res) => {
 
     console.log("🔍 Querying announcement_participants for ride:", rideId);
 
-    const { data, error } = await supabase
+    // Get accepted participants (co-passengers)
+    const { data: participants, error: participantsError } = await supabase
       .from("announcement_participants")
       .select(`
         id,
@@ -490,22 +410,78 @@ router.get('/:rideId/reviewable-users', authenticateToken, async (req, res) => {
       .eq("announcement_id", rideId)
       .eq("status", "accepted");
 
-    console.log("📊 Query result:", { data, error });
-
-    if (error) {
-      console.error("❌ Supabase error:", error);
+    if (participantsError) {
+      console.error("❌ Participants query error:", participantsError);
       return res.status(500).json({
         success: false,
-        message: "Database query failed"
+        message: "Failed to query participants"
       });
     }
 
-    console.log("👥 Found participants:", data?.length || 0);
+    console.log("👥 Found participants:", participants?.length || 0);
+
+    // Get the ride creator
+    const { data: announcement, error: announcementError } = await supabase
+      .from("announcements")
+      .select(`
+        created_by,
+        users!announcements_created_by_fkey (
+          id,
+          name,
+          phone_number,
+          profile_picture
+        )
+      `)
+      .eq("id", rideId)
+      .single();
+
+    if (announcementError) {
+      console.error("❌ Announcement query error:", announcementError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to query announcement"
+      });
+    }
+
+    console.log("� Found ride creator:", announcement?.created_by);
+
+    // Combine all reviewable users
+    let allReviewableUsers = [];
+
+    // Add participants (co-passengers)
+    if (participants && participants.length > 0) {
+      allReviewableUsers.push(...participants);
+    }
+
+    // Add ride creator if different from current user
+    if (announcement && announcement.created_by !== req.user.id) {
+      allReviewableUsers.push({
+        id: announcement.created_by,
+        user_id: announcement.created_by,
+        users: announcement.users,
+        is_creator: true,
+        role: 'creator'
+      });
+    }
+
+    // Mark participants as co-passengers
+    allReviewableUsers = allReviewableUsers.map(user => {
+      if (!user.is_creator) {
+        return {
+          ...user,
+          is_creator: false,
+          role: 'co-passenger'
+        };
+      }
+      return user;
+    });
+
+    console.log("🎯 All reviewable users before filtering:", allReviewableUsers.length);
 
     // Filter out current user from the results
-    const reviewableUsers = data.filter(request => request.user_id !== req.user.id);
+    const reviewableUsers = allReviewableUsers.filter(request => request.user_id !== req.user.id);
 
-    console.log("🎯 Reviewable users after filtering:", reviewableUsers.length);
+    console.log("🎯 Final reviewable users:", reviewableUsers.length);
 
     return res.json({
       success: true,

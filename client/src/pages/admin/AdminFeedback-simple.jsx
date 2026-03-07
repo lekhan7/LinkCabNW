@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { supabase } from '../../config/supabase';
 import { COLORS } from '../../utils/constants';
+import { FaStar } from 'react-icons/fa';
 
 const AdminFeedback = () => {
   const [feedback, setFeedback] = useState([]);
@@ -106,7 +109,7 @@ const AdminFeedback = () => {
               </p>
               {item.rating && (
                 <p style={{ color: COLORS.text, margin: '0 0 0.5rem 0' }}>
-                  Rating: {'⭐'.repeat(item.rating)}
+                  Rating: <span style={{ display: 'inline-flex', alignItems: 'center' }}>{renderStars(item.rating)}</span>
                 </p>
               )}
               <p style={{ color: COLORS.text, margin: '0', fontSize: '0.8rem' }}>

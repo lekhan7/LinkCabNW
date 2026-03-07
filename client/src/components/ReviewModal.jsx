@@ -14,17 +14,13 @@ const ReviewModal = ({
 }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [rating, setRating] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  const [reportReason, setReportReason] = useState('');
+  const [reviewDescription, setReviewDescription] = useState('');
+  const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
-  const [showReportOptions, setShowReportOptions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [reportReasons, setReportReasons] = useState([]);
-  const [submittingReport, setSubmittingReport] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchReportReasons();
       // Reset form when modal opens
       console.log('🔍 ReviewModal opening with reviewableUsers:', reviewableUsers);
       if (reviewableUsers && reviewableUsers.length > 0) {
@@ -38,10 +34,9 @@ const ReviewModal = ({
         setSelectedUser(null);
       }
       setRating(0);
-      setFeedback('');
-      setReportReason('');
+      setReviewDescription('');
+      setReportType('');
       setReportDescription('');
-      setShowReportOptions(false);
     }
   }, [isOpen, reviewableUsers]);
 
@@ -49,20 +44,11 @@ const ReviewModal = ({
   useEffect(() => {
     console.log('🔍 ReviewModal state debug:', {
       rating,
-      reportReason,
-      selectedUser: selectedUser?.name,
-      showReportOptions
+      reportType,
+      selectedUser: selectedUser?.name
     });
-  }, [rating, reportReason, selectedUser, showReportOptions]);
+  }, [rating, reportType, selectedUser]);
 
-  const fetchReportReasons = async () => {
-    try {
-      const response = await reportAPI.getReasons();
-      setReportReasons(response.data || []);
-    } catch (error) {
-      console.error('Failed to fetch report reasons:', error);
-    }
-  };
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -95,14 +81,18 @@ const ReviewModal = ({
         revieweeId: selectedUser.id,
         revieweeName: selectedUser.name,
         rating,
-        feedback
+        reviewDescription,
+        reportType,
+        reportDescription
       });
       
       await onSubmitReview({
         announcementId,
         revieweeId: selectedUser.id,
         rating,
-        feedback
+        reviewDescription,
+        reportType,
+        reportDescription
       });
       
       console.log('✅ Review submitted successfully');
@@ -121,10 +111,9 @@ const ReviewModal = ({
         console.log('👤 Auto-selecting next user:', nextUserData);
         setSelectedUser(nextUserData);
         setRating(0);
-        setFeedback('');
-        setReportReason('');
+        setReviewDescription('');
+        setReportType('');
         setReportDescription('');
-        setShowReportOptions(false);
       } else {
         console.log('🎉 All users reviewed, closing modal');
         onClose();
@@ -137,54 +126,6 @@ const ReviewModal = ({
     }
   };
 
-  const handleSubmitReport = async () => {
-    console.log('🔍 Report validation check:', {
-      selectedUser: selectedUser,
-      reportReason: reportReason,
-      reportReasonType: typeof reportReason,
-      reportReasonTrimmed: reportReason?.trim()
-    });
-    
-    if (!selectedUser) {
-      alert('Please select a user to report');
-      return;
-    }
-    
-    if (!reportReason || reportReason.trim() === '') {
-      alert('Please select a reason for the report');
-      return;
-    }
-
-    setSubmittingReport(true);
-    
-    try {
-      console.log('🔍 Submitting report:', {
-        announcementId,
-        reportedUserId: selectedUser.id,
-        reportedUserName: selectedUser.name,
-        reason: reportReason,
-        description: reportDescription
-      });
-      
-      await reportAPI.submit({
-        announcementId,
-        reportedUserId: selectedUser.id,
-        reason: reportReason,
-        description: reportDescription
-      });
-      
-      console.log('✅ Report submitted successfully');
-      alert('Report submitted successfully');
-      setReportReason('');
-      setReportDescription('');
-      setShowReportOptions(false);
-    } catch (error) {
-      console.error('❌ Error submitting report:', error);
-      alert(`Failed to submit report: ${error.message || 'Unknown error'}`);
-    } finally {
-      setSubmittingReport(false);
-    }
-  };
 
   const StarRating = ({ value, onChange, size = '2rem' }) => {
     return (
@@ -289,7 +230,7 @@ const ReviewModal = ({
             padding: '0.5rem',
             borderRadius: '0.25rem'
           }}>
-            DEBUG: Rating={rating}, Reason="{reportReason}", User={selectedUser?.name}
+            DEBUG: Rating={rating}, Report Type="{reportType}", User={selectedUser?.name}
           </div>
 
           {/* Progress Indicator */}
@@ -299,7 +240,10 @@ const ReviewModal = ({
             fontSize: '0.875rem',
             color: COLORS.textMuted
           }}>
-            Reviewing {reviewableUsers.indexOf(selectedUser) + 1} of {reviewableUsers.length}
+            Reviewing {reviewableUsers.indexOf(reviewableUsers.find(u => {
+              const userData = u.users || u;
+              return userData.id === selectedUser?.id;
+            })) + 1} of {reviewableUsers.length} {reviewableUsers.length === 1 ? 'person' : 'people'}
           </div>
 
           {/* No Users Message */}
@@ -369,10 +313,9 @@ const ReviewModal = ({
                   const userData = user?.users || user;
                   setSelectedUser(userData);
                   setRating(0);
-                  setFeedback('');
-                  setReportReason('');
+                  setReviewDescription('');
+                  setReportType('');
                   setReportDescription('');
-                  setShowReportOptions(false);
                 }}
                 style={{
                   width: '100%',
@@ -388,7 +331,7 @@ const ReviewModal = ({
                   const userData = user.users || user;
                   return (
                     <option key={userData.id} value={userData.id}>
-                      {userData.name}
+                      {userData.name} ({user.is_creator ? 'Ride Creator' : 'Co-Passenger'})
                     </option>
                   );
                 })}
@@ -425,15 +368,29 @@ const ReviewModal = ({
               </div>
               <div style={{ 
                 fontSize: '0.875rem', 
-                color: COLORS.textMuted 
+                color: COLORS.textMuted,
+                marginBottom: '0.5rem'
               }}>
-                {selectedUser.completion_type}
+                {selectedUser.completion_type || 'Passenger'}
+              </div>
+              {/* Show role indicator */}
+              <div style={{
+                display: 'inline-block',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '1rem',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                backgroundColor: selectedUser.is_creator ? COLORS.success : COLORS.primary,
+                color: '#fff',
+                marginBottom: '0.5rem'
+              }}>
+                {selectedUser.is_creator ? 'Ride Creator' : 'Co-Passenger'}
               </div>
               {selectedUser.average_rating && (
                 <div style={{ 
                   fontSize: '0.875rem', 
                   color: COLORS.textMuted,
-                  marginTop: '0.25rem'
+                  marginTop: '0.5rem'
                 }}>
                   Current Rating: ⭐ {selectedUser.average_rating.toFixed(1)}
                 </div>
@@ -470,7 +427,7 @@ const ReviewModal = ({
             )}
           </div>
 
-          {/* Feedback */}
+          {/* Review Description */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ 
               display: 'block', 
@@ -479,11 +436,11 @@ const ReviewModal = ({
               color: COLORS.text,
               marginBottom: '0.5rem' 
             }}>
-              Additional feedback (optional)
+              Review Description (optional)
             </label>
             <textarea
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
+              value={reviewDescription}
+              onChange={(e) => setReviewDescription(e.target.value)}
               placeholder="Share your experience..."
               style={{
                 width: '100%',
@@ -498,129 +455,80 @@ const ReviewModal = ({
             />
           </div>
 
-          {/* Report Options */}
+          {/* Report Issue Section */}
           <div style={{ marginBottom: '1.5rem' }}>
-            <button
-              type="button"
-              onClick={() => setShowReportOptions(!showReportOptions)}
-              style={{
-                backgroundColor: 'transparent',
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text,
-                padding: '0.5rem 1rem',
-                borderRadius: '0.5rem',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <FaExclamationTriangle />
-              {showReportOptions ? 'Hide Report Options' : 'Report an Issue'}
-            </button>
-
-            {showReportOptions && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                style={{
-                  marginTop: '1rem',
-                  padding: '1rem',
-                  backgroundColor: '#fef3c7',
-                  border: '1px solid #f59e0b',
-                  borderRadius: '0.5rem'
-                }}
-              >
-
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '0.875rem', 
-                    fontWeight: '600', 
-                    color: '#92400e',
-                    marginBottom: '0.5rem' 
-                  }}>
-                    Report an Issue (optional)
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {reportReasons.map(reason => (
-                      <label key={reason.value} style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem',
-                        cursor: 'pointer',
-                        padding: '0.5rem',
-                        borderRadius: '0.25rem',
-                        backgroundColor: reportReason === reason.value ? '#fef3c7' : 'transparent',
-                        border: reportReason === reason.value ? '1px solid #f59e0b' : '1px solid #d1d5db'
-                      }}>
-                        <input
-                          type="radio"
-                          name="reportReason"
-                          value={reason.value}
-                          checked={reportReason === reason.value}
-                          onChange={(e) => {
-                            console.log('🚨 Report reason selected:', e.target.value);
-                            setReportReason(e.target.value);
-                          }}
-                          style={{ margin: 0 }}
-                        />
-                        <span style={{ fontSize: '0.875rem', color: '#374151' }}>
-                          {reason.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  
-                  {reportReason && (
-                    <div style={{ marginTop: '1rem' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        fontSize: '0.875rem', 
-                        fontWeight: '600', 
-                        color: '#92400e',
-                        marginBottom: '0.5rem' 
-                      }}>
-                        Describe the issue
-                      </label>
-                      <textarea
-                        value={reportDescription}
-                        onChange={(e) => setReportDescription(e.target.value)}
-                        placeholder="Please provide details about the issue..."
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          border: '1px solid #f59e0b',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.875rem',
-                          minHeight: '80px',
-                          resize: 'vertical',
-                          backgroundColor: '#fff'
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSubmitReport}
-                        disabled={submittingReport || !reportReason}
-                        style={{
-                          marginTop: '1rem',
-                          padding: '0.5rem 1rem',
-                          backgroundColor: submittingReport || !reportReason ? '#d1d5db' : '#dc2626',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.875rem',
-                          fontWeight: '600',
-                          cursor: submittingReport || !reportReason ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        {submittingReport ? 'Submitting...' : 'Submit Report'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+            <label style={{ 
+              display: 'block', 
+              fontSize: '0.875rem', 
+              fontWeight: '600', 
+              color: COLORS.text,
+              marginBottom: '0.5rem' 
+            }}>
+              Report Issue (optional)
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {[
+                { value: 'Driver Behavior', label: 'Driver Behavior' },
+                { value: 'Vehicle Condition', label: 'Vehicle Condition' },
+                { value: 'Late Arrival', label: 'Late Arrival' },
+                { value: 'Route Issue', label: 'Route Issue' },
+                { value: 'Other', label: 'Other' }
+              ].map(type => (
+                <label key={type.value} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  borderRadius: '0.25rem',
+                  backgroundColor: reportType === type.value ? COLORS.surfaceLight : 'transparent',
+                  border: reportType === type.value ? `1px solid ${COLORS.primary}` : '1px solid #d1d5db'
+                }}>
+                  <input
+                    type="radio"
+                    name="reportType"
+                    value={type.value}
+                    checked={reportType === type.value}
+                    onChange={(e) => {
+                      console.log('🚨 Report type selected:', e.target.value);
+                      setReportType(e.target.value);
+                    }}
+                    style={{ margin: 0 }}
+                  />
+                  <span style={{ fontSize: '0.875rem', color: COLORS.text }}>
+                    {type.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            
+            {reportType && (
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '0.875rem', 
+                  fontWeight: '600', 
+                  color: COLORS.text,
+                  marginBottom: '0.5rem' 
+                }}>
+                  Report Description
+                </label>
+                <textarea
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder="Please provide details about the issue..."
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem',
+                    minHeight: '80px',
+                    resize: 'vertical',
+                    backgroundColor: COLORS.surface
+                  }}
+                />
+              </div>
             )}
           </div>
 
@@ -633,14 +541,18 @@ const ReviewModal = ({
             <button
               type="button"
               onClick={() => {
-                const remainingUsers = reviewableUsers.filter(u => u.id !== selectedUser.id);
+                const remainingUsers = reviewableUsers.filter(u => {
+                  const userData = u.users || u;
+                  return userData.id !== selectedUser.id;
+                });
                 if (remainingUsers.length > 0) {
-                  setSelectedUser(remainingUsers[0]);
+                  const nextUser = remainingUsers[0];
+                  const nextUserData = nextUser.users || nextUser;
+                  setSelectedUser(nextUserData);
                   setRating(0);
-                  setFeedback('');
-                  setReportReason('');
+                  setReviewDescription('');
+                  setReportType('');
                   setReportDescription('');
-                  setShowReportOptions(false);
                 } else {
                   onClose();
                 }

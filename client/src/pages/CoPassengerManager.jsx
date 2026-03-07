@@ -303,25 +303,30 @@ const CoPassengerManager = () => {
 
   const handleCompleteRide = async (announcementId, completionType = 'creator') => {
     try {
-      const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
-      success(response.message || 'Ride completion recorded successfully');
+      // First fetch reviewable users and show review modal
+      const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
+      const users = reviewableResponse.users || reviewableResponse.data?.users || [];
       
-      // Refresh data
-      fetchAnnouncementData();
-      
-      // Fetch reviewable users and show review modal if ride is ready for reviews
-      if (response.data.completion_status === 'pending_completion' || response.data.completion_status === 'completed') {
-        try {
-          const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
-          setReviewableUsers(reviewableResponse.data.users || []);
-          setShowReviewModal(true);
-        } catch (reviewError) {
-          console.error('Error fetching reviewable users:', reviewError);
-        }
+      if (users.length > 0) {
+        // Store the completion data for later use after reviews
+        setReviewableUsers(users);
+        
+        // Store completion info to use after reviews are done
+        window.pendingCompletion = { announcementId, completionType };
+        
+        setShowReviewModal(true);
+        success('Please complete reviews for all co-passengers first');
+      } else {
+        // No users to review, complete the ride directly
+        const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
+        success(response.message || 'Ride completion recorded successfully');
+        
+        // Refresh data
+        fetchAnnouncementData();
       }
     } catch (err) {
-      console.error('Error completing ride:', err);
-      error(err.message || 'Failed to complete ride');
+      console.error('Error in handleCompleteRide:', err);
+      error(err.message || 'Failed to initiate ride completion');
     }
   };
 
@@ -329,8 +334,44 @@ const CoPassengerManager = () => {
     try {
       await reviewAPI.submitReview(reviewData);
       success('Review submitted successfully!');
-      setShowReviewModal(false);
-      setReviewableUsers([]);
+      
+      // Check if there are more users to review
+      const remainingUsers = reviewableUsers.filter(u => {
+        const userData = u.users || u;
+        return userData.id !== reviewData.revieweeId;
+      });
+      
+      if (remainingUsers.length === 0) {
+        // All reviews completed, now complete the ride
+        console.log('🎉 All reviews completed, completing ride');
+        
+        if (window.pendingCompletion) {
+          const { announcementId, completionType } = window.pendingCompletion;
+          
+          try {
+            const response = await rideCompletionAPI.completeRide(announcementId, { completionType });
+            success(response.message || 'Ride completed successfully!');
+            
+            // Refresh data
+            fetchAnnouncementData();
+            
+            // Clear pending completion
+            window.pendingCompletion = null;
+            
+          } catch (completionError) {
+            console.error('Error completing ride after reviews:', completionError);
+            error(completionError.message || 'Failed to complete ride');
+          }
+        }
+        
+        // Close review modal
+        setShowReviewModal(false);
+        setReviewableUsers([]);
+      } else {
+        // Continue with next user
+        setReviewableUsers(remainingUsers);
+        // Modal will auto-select next user
+      }
     } catch (err) {
       console.error('Error submitting review:', err);
       error(err.message || 'Failed to submit review');
@@ -908,6 +949,8 @@ const CoPassengerManager = () => {
         onClose={() => {
           setShowReviewModal(false);
           setReviewableUsers([]);
+          // Clear pending completion if user closes modal manually
+          window.pendingCompletion = null;
         }}
         announcementId={announcementId}
         reviewableUsers={reviewableUsers}

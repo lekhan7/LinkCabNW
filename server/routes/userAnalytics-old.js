@@ -32,12 +32,11 @@ router.get('/ratings', authenticateToken, async (req, res) => {
   try {
     const targetUserId = req.user.id;
 
-    // Get rating analytics directly from refuse table
+    // Get rating analytics directly from ratings table
     const { data: ratingsData, error: ratingsError } = await supabase
-      .from('refuse')
-      .select('stars, review_description, created_at, reviewer_id')
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', false);
+      .from('ratings')
+      .select('stars, review, created_at, from_user_id')
+      .eq('to_user_id', targetUserId);
 
     if (ratingsError) {
       console.error('Failed to get user rating analytics:', ratingsError);
@@ -76,18 +75,11 @@ router.get('/ratings', authenticateToken, async (req, res) => {
       .eq('created_by', targetUserId)
       .eq('ride_completed', true);
 
-    // Get reports count from refuse table
-    const { count: reportsCount, error: reportsError } = await supabase
-      .from('refuse')
-      .select('*', { count: 'exact', head: true })
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', true);
-
     const analyticsData = {
       total_rides_completed: completedRides || 0,
       average_rating: averageRating.toFixed(1),
       total_reviews_received: totalReviews,
-      total_reports_received: reportsCount || 0,
+      total_reports_received: 0, // TODO: Implement when reports table is ready
       star_distribution
     };
 
@@ -141,12 +133,11 @@ router.get('/ratings/:userId', authenticateToken, async (req, res) => {
       }
     }
 
-    // Get rating analytics directly from refuse table
+    // Get rating analytics directly from ratings table
     const { data: ratingsData, error: ratingsError } = await supabase
-      .from('refuse')
-      .select('stars, review_description, created_at, reviewer_id')
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', false);
+      .from('ratings')
+      .select('stars, review, created_at, from_user_id')
+      .eq('to_user_id', targetUserId);
 
     if (ratingsError) {
       console.error('Failed to get user rating analytics:', ratingsError);
@@ -185,18 +176,11 @@ router.get('/ratings/:userId', authenticateToken, async (req, res) => {
       .eq('created_by', targetUserId)
       .eq('ride_completed', true);
 
-    // Get reports count from refuse table
-    const { count: reportsCount, error: reportsError } = await supabase
-      .from('refuse')
-      .select('*', { count: 'exact', head: true })
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', true);
-
     const analyticsData = {
       total_rides_completed: completedRides || 0,
       average_rating: averageRating.toFixed(1),
       total_reviews_received: totalReviews,
-      total_reports_received: reportsCount || 0,
+      total_reports_received: 0, // TODO: Implement when reports table is ready
       star_distribution
     };
 
@@ -235,14 +219,13 @@ router.get('/reviews', authenticateToken, async (req, res) => {
     const { limit = 10, offset = 0 } = req.query;
 
     const { data, error } = await supabase
-      .from('refuse')
+      .from('reviews')
       .select(`
         *,
         reviewer:users(id, name, profile_picture),
-        announcement:announcements(id, start_location_name, destination_name, date, time)
+        ride:announcements(id, start_location_name, destination_name, date, time)
       `)
       .eq('reviewee_id', targetUserId)
-      .eq('is_report', false)
       .order('created_at', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -256,10 +239,9 @@ router.get('/reviews', authenticateToken, async (req, res) => {
 
     // Get total count for pagination
     const { count, error: countError } = await supabase
-      .from('refuse')
+      .from('reviews')
       .select('*', { count: 'exact', head: true })
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', false);
+      .eq('reviewee_id', targetUserId);
 
     if (countError) {
       console.error('Failed to get reviews count:', countError);
@@ -311,14 +293,13 @@ router.get('/reviews/:userId', authenticateToken, async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from('refuse')
+      .from('reviews')
       .select(`
         *,
         reviewer:users(id, name, profile_picture),
-        announcement:announcements(id, start_location_name, destination_name, date, time)
+        ride:announcements(id, start_location_name, destination_name, date, time)
       `)
       .eq('reviewee_id', targetUserId)
-      .eq('is_report', false)
       .order('created_at', { ascending: false })
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -332,10 +313,9 @@ router.get('/reviews/:userId', authenticateToken, async (req, res) => {
 
     // Get total count for pagination
     const { count, error: countError } = await supabase
-      .from('refuse')
+      .from('reviews')
       .select('*', { count: 'exact', head: true })
-      .eq('reviewee_id', targetUserId)
-      .eq('is_report', false);
+      .eq('reviewee_id', targetUserId);
 
     if (countError) {
       console.error('Failed to get reviews count:', countError);

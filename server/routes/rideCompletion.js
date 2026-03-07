@@ -56,12 +56,30 @@ router.post('/:announcementId/complete', authenticateToken, async (req, res) => 
       });
     }
 
-    // Check if user is creator (for now, only creators can complete rides)
+    // Check if user is creator OR participant (both can complete now)
     if (completionType === 'creator' && announcement.created_by !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Only the ride creator can complete the ride'
+        message: 'Only the ride creator can use creator completion type'
       });
+    }
+
+    if (completionType === 'participant') {
+      // Check if user is an accepted participant
+      const { data: participant, error: participantError } = await supabase
+        .from('announcement_participants')
+        .select('*')
+        .eq('announcement_id', announcementId)
+        .eq('user_id', req.user.id)
+        .eq('status', 'accepted')
+        .single();
+
+      if (participantError || !participant) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only accepted participants can complete rides'
+        });
+      }
     }
 
     // Check if ride is already completed
@@ -85,27 +103,90 @@ router.post('/:announcementId/complete', authenticateToken, async (req, res) => 
 
     let result;
 
-    // Try to use database function if available, otherwise use fallback
+    // New completion logic: Implement directly in code since DB functions might not be updated
     try {
-      console.log('🔍 Attempting to use database function for ride completion');
-      const { data: dbResult, error: completionError } = await supabase
-        .rpc('update_ride_completion_status', { 
-          announcement_uuid: announcementId, 
-          user_uuid: req.user.id, 
-          completion_type: completionType 
+      console.log('🔍 Using new completion logic based on reviews');
+      
+      // Count accepted participants (excluding creator)
+      const { data: participants, error: participantsError } = await supabase
+        .from('announcement_participants')
+        .select('user_id')
+        .eq('announcement_id', announcementId)
+        .eq('status', 'accepted');
+
+      const acceptedParticipants = participants?.length || 0;
+      
+      // Count reviews submitted for this announcement
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('review_details')
+        .select('id')
+        .eq('announcement_id', announcementId);
+
+      const reviewsCount = reviews?.length || 0;
+      
+      // Calculate required reviews
+      let requiredReviews = 0;
+      let allReviewsSubmitted = false;
+      
+      if (acceptedParticipants === 0) {
+        // No co-passengers, creator can complete directly
+        requiredReviews = 0;
+        allReviewsSubmitted = true;
+      } else {
+        // Co-passengers exist, each should review the creator
+        requiredReviews = acceptedParticipants;
+        allReviewsSubmitted = (reviewsCount >= requiredReviews);
+      }
+
+      // Insert/update user completion status
+      const { error: completionError } = await supabase
+        .from('announcement_completion_status')
+        .upsert({
+          announcement_id: announcementId,
+          user_id: req.user.id,
+          completed: true
+        }, {
+          onConflict: 'announcement_id,user_id'
         });
 
-      console.log('📊 Database function result:', { dbResult, completionError });
-
-      if (!completionError && dbResult) {
-        console.log('✅ Database function succeeded');
-        result = dbResult;
-      } else {
-        console.log('❌ Database function failed, using fallback');
-        throw completionError || new Error('Database function failed');
+      if (completionError) {
+        console.error('Failed to update completion status:', completionError);
       }
-    } catch (funcError) {
-      console.log('Database function not available, using fallback logic');
+
+      // Only mark announcement as completed when all required reviews are submitted
+      let announcementUpdated = false;
+      if (allReviewsSubmitted && !announcement.ride_completed) {
+        const { error: updateError } = await supabase
+          .from('announcements')
+          .update({ 
+            ride_completed: true,
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', announcementId);
+
+        if (!updateError) {
+          announcementUpdated = true;
+          console.log('✅ Announcement marked as completed');
+        } else {
+          console.error('Failed to update announcement:', updateError);
+        }
+      }
+
+      result = {
+        success: true,
+        completion_status: allReviewsSubmitted ? 'completed' : 'pending_reviews',
+        participant_count: acceptedParticipants + 1,
+        accepted_participants: acceptedParticipants,
+        reviews_count: reviewsCount,
+        required_reviews: requiredReviews,
+        all_reviews_submitted: allReviewsSubmitted,
+        announcement_completed: announcement.ride_completed || announcementUpdated
+      };
+
+      console.log('📊 New completion logic result:', result);
+
+    } catch (logicError) {
+      console.error('New completion logic failed, using fallback:', logicError);
       
       // Fallback: Simply mark the ride as completed
       console.log('🔄 Using fallback logic to complete ride:', announcementId);
@@ -142,18 +223,29 @@ router.post('/:announcementId/complete', authenticateToken, async (req, res) => 
         completion_type: completionType,
         completed_by: req.user.id,
         completion_status: result.completion_status,
-        all_completed: result.all_completed
+        all_completed: result.all_completed,
+        all_participants_completed: result.all_participants_completed,
+        all_participants_reviewed: result.all_participants_reviewed,
+        participant_count: result.participant_count,
+        completed_count: result.completed_count,
+        reviewed_count: result.reviewed_count
       });
     }
 
     res.json({
       success: true,
-      message: 'Ride completion recorded successfully',
+      message: result.all_completed ? 
+        'All required reviews submitted! Ride is now fully completed!' :
+        'Your completion has been recorded. Waiting for all required reviews to be submitted.',
       data: {
         completion_status: result.completion_status,
         participant_count: result.participant_count,
-        completed_count: result.completed_count,
-        all_completed: result.all_completed
+        accepted_participants: result.accepted_participants,
+        reviews_count: result.reviews_count,
+        required_reviews: result.required_reviews,
+        all_reviews_submitted: result.all_reviews_submitted,
+        all_completed: result.all_reviews_submitted,
+        announcement_completed: result.announcement_completed
       }
     });
 
@@ -216,35 +308,87 @@ router.get('/:announcementId/completion-status', authenticateToken, async (req, 
     const rideDateTime = new Date(`${announcement.date}T${announcement.time}`);
     const isTimePassed = rideDateTime <= new Date();
 
-    // Determine if user can complete the ride
+    // Determine if user can complete the ride using new logic
     let canCompleteResult = {
       can_complete: false,
       completion_type: null,
       is_creator: isCreator,
       is_participant: isParticipant,
-      already_completed: announcement.ride_completed,
+      already_completed: false,
+      announcement_completed: announcement.ride_completed,
       is_time_passed: isTimePassed
     };
 
-    // Try to use database function if available, otherwise use fallback logic
+    // Use new completion logic directly in code
     try {
-      const { data: dbResult, error: permissionError } = await supabase
-        .rpc('can_complete_ride', { 
-          announcement_uuid: announcementId, 
-          user_uuid: req.user.id
-        });
+      // Check if user has already completed this ride
+      const { data: userCompletion } = await supabase
+        .from('announcement_completion_status')
+        .select('completed')
+        .eq('announcement_id', announcementId)
+        .eq('user_id', req.user.id)
+        .single();
 
-      if (!permissionError && dbResult) {
-        canCompleteResult = dbResult;
+      const alreadyCompleted = userCompletion?.completed || false;
+      canCompleteResult.already_completed = alreadyCompleted;
+
+      // Count accepted participants
+      const { data: participants } = await supabase
+        .from('announcement_participants')
+        .select('user_id')
+        .eq('announcement_id', announcementId)
+        .eq('status', 'accepted');
+
+      const acceptedParticipants = participants?.length || 0;
+      
+      // Count reviews submitted
+      const { data: reviews } = await supabase
+        .from('review_details')
+        .select('id')
+        .eq('announcement_id', announcementId);
+
+      const reviewsCount = reviews?.length || 0;
+      
+      // Calculate required reviews
+      let requiredReviews = 0;
+      let allReviewsSubmitted = false;
+      
+      if (acceptedParticipants === 0) {
+        requiredReviews = 0;
+        allReviewsSubmitted = true;
+      } else {
+        requiredReviews = acceptedParticipants;
+        allReviewsSubmitted = (reviewsCount >= requiredReviews);
       }
-    } catch (funcError) {
-      console.log('Database function not available, using fallback logic');
+
+      // Determine if user can complete
+      if ((isCreator || isParticipant) && !alreadyCompleted && !announcement.ride_completed && isTimePassed) {
+        canCompleteResult.can_complete = true;
+        canCompleteResult.completion_type = isCreator ? 'creator' : 'participant';
+        canCompleteResult.accepted_participants = acceptedParticipants;
+        canCompleteResult.reviews_count = reviewsCount;
+        canCompleteResult.required_reviews = requiredReviews;
+        canCompleteResult.all_reviews_submitted = allReviewsSubmitted;
+        canCompleteResult.message = 'You can complete this ride';
+      } else if (announcement.ride_completed) {
+        canCompleteResult.message = 'Announcement already completed';
+      } else if (alreadyCompleted) {
+        canCompleteResult.message = 'You have already completed this ride';
+      } else if (!isTimePassed) {
+        canCompleteResult.message = 'Ride time has not passed yet';
+      } else {
+        canCompleteResult.message = 'You cannot complete this ride';
+      }
+
+    } catch (error) {
+      console.error('Error checking completion status:', error);
       // Use fallback logic
       if (isCreator && !announcement.ride_completed && isTimePassed) {
         canCompleteResult = {
           ...canCompleteResult,
           can_complete: true,
-          completion_type: 'creator'
+          completion_type: 'creator',
+          message: 'You can complete this ride'
         };
       }
     }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../config/supabase';
 import { COLORS } from '../../utils/constants';
+import { config } from '../../config/env';
 import { FaStar, FaComment, FaExclamationTriangle, FaLightbulb, FaBug, FaHeart, FaTrash, FaReply, FaCheck, FaTimes, FaFilter, FaSearch } from 'react-icons/fa';
 
 const AdminFeedback = () => {
@@ -41,7 +42,7 @@ const AdminFeedback = () => {
         ...(filterStatus && { status: filterStatus })
       });
 
-      const response = await fetch(`/api/admin/feedback?${queryParams}`, {
+      const response = await fetch(`${config.apiBaseUrl}/feedback?${queryParams}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -61,7 +62,7 @@ const AdminFeedback = () => {
           throw new Error('No access token after refresh');
         }
         
-        const retryResponse = await fetch(`/api/admin/feedback?${queryParams}`, {
+        const retryResponse = await fetch(`${config.apiBaseUrl}/feedback?${queryParams}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${refreshedSession.access_token}`,
@@ -127,7 +128,7 @@ const AdminFeedback = () => {
       
       switch (action) {
         case 'delete':
-          response = await fetch(`/api/admin/feedback/${feedbackId}`, {
+          response = await fetch(`${config.apiBaseUrl}/feedback/${feedbackId}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -137,7 +138,7 @@ const AdminFeedback = () => {
           break;
         
         case 'respond':
-          response = await fetch(`/api/admin/feedback/${feedbackId}/status`, {
+          response = await fetch(`${config.apiBaseUrl}/feedback/${feedbackId}/status`, {
             method: 'PUT',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -151,7 +152,7 @@ const AdminFeedback = () => {
           break;
         
         case 'resolve':
-          response = await fetch(`/api/admin/feedback/${feedbackId}/status`, {
+          response = await fetch(`${config.apiBaseUrl}/feedback/${feedbackId}/status`, {
             method: 'PUT',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -165,7 +166,7 @@ const AdminFeedback = () => {
           break;
         
         case 'dismiss':
-          response = await fetch(`/api/admin/feedback/${feedbackId}/status`, {
+          response = await fetch(`${config.apiBaseUrl}/feedback/${feedbackId}/status`, {
             method: 'PUT',
             headers: {
               'Authorization': `Bearer ${token}`,

@@ -57,13 +57,14 @@ const AdminReports = () => {
       try {
         console.log('Attempting fallback to direct Supabase query...');
         const { data, error } = await supabase
-          .from('ride_reports')
+          .from('review_details')
           .select(`
             *,
-            reporter:users(id, name, email),
-            reported_user:users(id, name, email),
+            reviewer:users!review_details_user_id_fkey(id, name, email),
+            reviewee:users!review_details_reviewee_id_fkey(id, name, email),
             announcement:announcements(id, start_location_name, destination_name)
           `)
+          .not('report_type', 'is', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -198,9 +199,9 @@ const AdminReports = () => {
 
   const filteredReports = reports.filter(report => {
     const matchesSearch = 
-      report.reporter?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reported_user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.report_reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reviewer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reviewee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.report_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.report_description?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || report.status === statusFilter;
@@ -345,34 +346,34 @@ const AdminReports = () => {
                     <td style={{ padding: '1rem' }}>
                       <div>
                         <p style={{ fontWeight: '500', color: COLORS.text, margin: '0.25rem 0' }}>
-                          {report.reporter?.username || 'Unknown'}
+                          {report.reviewer?.name || 'Unknown'}
                         </p>
                         <p style={{ fontSize: '0.75rem', color: '#6B7280', margin: '0.25rem 0' }}>
-                          {report.reporter?.email || 'N/A'}
+                          {report.reviewer?.email || 'N/A'}
                         </p>
                       </div>
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <div>
                         <p style={{ fontWeight: '500', color: COLORS.text, margin: '0.25rem 0' }}>
-                          {report.reported_user?.username || 'Unknown'}
+                          {report.reviewee?.name || 'Unknown'}
                         </p>
                         <p style={{ fontSize: '0.75rem', color: '#6B7280', margin: '0.25rem 0' }}>
-                          {report.reported_user?.email || 'N/A'}
+                          {report.reviewee?.email || 'N/A'}
                         </p>
                       </div>
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <span style={{
-                        backgroundColor: getReasonColor(report.reason) + '20',
-                        color: getReasonColor(report.reason),
+                        backgroundColor: getReasonColor(report.report_type) + '20',
+                        color: getReasonColor(report.report_type),
                         padding: '0.25rem 0.75rem',
                         borderRadius: '1rem',
                         fontSize: '0.75rem',
                         fontWeight: '500',
                         textTransform: 'capitalize',
                       }}>
-                        {report.reason?.replace('_', ' ')}
+                        {report.report_type?.replace('_', ' ')}
                       </span>
                     </td>
                     <td style={{ padding: '1rem' }}>
@@ -382,7 +383,7 @@ const AdminReports = () => {
                         maxWidth: '250px',
                         lineHeight: '1.4'
                       }}>
-                        {report.description?.substring(0, 100)}...
+                        {report.report_description?.substring(0, 100)}...
                       </p>
                     </td>
                     <td style={{ padding: '1rem' }}>
@@ -546,10 +547,10 @@ const AdminReports = () => {
                 <strong>Report Details:</strong>
               </p>
               <div style={{ backgroundColor: '#F9FAFB', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-                <div><strong>Reporter:</strong> {selectedReport.reporter?.username}</div>
-                <div><strong>Reported User:</strong> {selectedReport.reported_user?.username}</div>
-                <div><strong>Reason:</strong> {selectedReport.reason?.replace('_', ' ')}</div>
-                <div><strong>Description:</strong> {selectedReport.description}</div>
+                <div><strong>Reporter:</strong> {selectedReport.reviewer?.name}</div>
+                <div><strong>Reported User:</strong> {selectedReport.reviewee?.name}</div>
+                <div><strong>Reason:</strong> {selectedReport.report_type?.replace('_', ' ')}</div>
+                <div><strong>Description:</strong> {selectedReport.report_description}</div>
               </div>
             </div>
             <p style={{ color: '#6B7280', marginBottom: '1.5rem' }}>

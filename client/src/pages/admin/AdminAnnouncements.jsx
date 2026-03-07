@@ -858,7 +858,7 @@ const AdminAnnouncements = () => {
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: COLORS.text, marginBottom: '1rem' }}>
               Confirm {actionType}
             </h3>
-            <p style={{ color: '#6B7280', marginBottom: '1.5rem' }}>
+            <div style={{ color: '#6B7280', marginBottom: '1.5rem' }}>
               Are you sure you want to {actionType} this announcement from "{selectedAnnouncement.start_location_name}" to "{selectedAnnouncement.destination_name}"?
               {actionType === 'delete' && (
                 <div style={{ marginTop: '0.5rem', color: '#EF4444', fontWeight: '500' }}>
@@ -873,7 +873,7 @@ const AdminAnnouncements = () => {
                   This action cannot be undone.
                 </div>
               )}
-            </p>
+            </div>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => {

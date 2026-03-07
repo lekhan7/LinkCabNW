@@ -54,11 +54,11 @@ const AdminReviews = () => {
       try {
         console.log('Attempting fallback to direct Supabase query...');
         const { data, error } = await supabase
-          .from('reviews')
+          .from('review_details')
           .select(`
             *,
-            reviewer:users!reviews_reviewer_id_fkey(id, name, email),
-            reviewee:users!reviews_reviewee_id_fkey(id, name, email),
+            reviewer:users!review_details_user_id_fkey(id, name, email),
+            reviewee:users!review_details_reviewee_id_fkey(id, name, email),
             announcement:announcements(id, start_location_name, destination_name)
           `)
           .order('created_at', { ascending: false });
@@ -80,9 +80,9 @@ const AdminReviews = () => {
     const matchesSearch = 
       review.reviewer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.reviewee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.feedback?.toLowerCase().includes(searchTerm.toLowerCase());
+      review.review_description?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRating = ratingFilter === 'all' || review.rating === parseInt(ratingFilter);
+    const matchesRating = ratingFilter === 'all' || review.stars === parseInt(ratingFilter);
     
     return matchesSearch && matchesRating;
   });
@@ -104,7 +104,19 @@ const AdminReviews = () => {
   };
 
   const renderStars = (rating) => {
-    return '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+    return (
+      <div style={{ display: 'flex', gap: '0.25rem' }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <FaStar
+            key={star}
+            style={{
+              color: star <= rating ? '#f5c400' : COLORS.border,
+              fontSize: '0.875rem'
+            }}
+          />
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -234,17 +246,17 @@ const AdminReviews = () => {
                     <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
-                          backgroundColor: getRatingColor(review.rating) + '20',
-                          color: getRatingColor(review.rating),
+                          backgroundColor: getRatingColor(review.stars) + '20',
+                          color: getRatingColor(review.stars),
                           padding: '0.25rem 0.75rem',
                           borderRadius: '1rem',
                           fontSize: '0.875rem',
                           fontWeight: '600',
                         }}>
-                          {review.rating}
+                          {review.stars}
                         </span>
                         <span style={{ fontSize: '1rem' }}>
-                          {renderStars(review.rating)}
+                          {renderStars(review.stars)}
                         </span>
                       </div>
                     </td>
@@ -255,7 +267,7 @@ const AdminReviews = () => {
                         maxWidth: '300px',
                         lineHeight: '1.4'
                       }}>
-                        {review.feedback || 'No feedback provided'}
+                        {review.review_description || 'No feedback provided'}
                       </p>
                     </td>
                     <td style={{ padding: '1rem' }}>

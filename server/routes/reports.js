@@ -112,7 +112,7 @@ router.post('/submit', authenticateToken, async (req, res) => {
       });
     }
 
-    if (!result.success) {
+    if (result && typeof result === 'object' && result.success === false) {
       return res.status(400).json({
         success: false,
         message: result.error || 'Failed to submit report'
