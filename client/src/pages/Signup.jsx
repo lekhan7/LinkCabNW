@@ -21,6 +21,7 @@ const Signup = () => {
   
   const { signup, isLoading, error } = useAuth();
   const navigate = useNavigate();
+  const { success } = useToast();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -138,21 +139,11 @@ const Signup = () => {
     const result = await signup(submitData);
     
     if (result.success) {
-      // Show OTP alert
-      if (result.data.otp) {
-        alert(`Your OTP is: ${result.data.otp}`);
-      }
+      // Show success toast message
+      success('Registration successful! Double verification needed. Please login with your credentials.');
       
-      alert('Registration successful! Please verify your phone number with the OTP sent.');
-      
-      navigate('/otp', { 
-        state: { 
-          userId: result.data.userId,
-          phoneNumber: formData.phoneNumber,
-          isNewUser: true,
-          otp: result.data.otp // Pass OTP to show again on OTP page
-        } 
-      });
+      // Redirect to login page
+      navigate('/login');
     }
   };
 
