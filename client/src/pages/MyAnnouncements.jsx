@@ -44,24 +44,19 @@ const MyAnnouncements = () => {
   const canCompleteRide = (announcement) => {
     const isCreator = announcement.created_by?.id === user?.id;
     const isAcceptedParticipant = announcement.myParticipantStatus === 'accepted';
-    const timePassed = isRideTimePassed(announcement.date, announcement.time);
     
     console.log('🔍 Can complete ride check:', {
       isCreator,
       isAcceptedParticipant,
-      timePassed,
       rideCompleted: announcement.ride_completed,
       announcementId: announcement.id
     });
     
-    // For creators: can complete if time passed and not already completed
-    if (isCreator) {
-      return timePassed && !announcement.ride_completed;
-    }
-    
-    // For co-passengers: can complete if time passed (regardless of creator completion status)
-    if (isAcceptedParticipant) {
-      return timePassed;
+    // Remove time-based restriction - allow completion if:
+    // - User is creator or accepted participant
+    // - Ride is not already completed
+    if ((isCreator || isAcceptedParticipant) && !announcement.ride_completed) {
+      return true;
     }
     
     return false;
@@ -204,14 +199,14 @@ const MyAnnouncements = () => {
 
   const handleCompleteRide = async (announcementId, completionType) => {
     try {
-      // First fetch reviewable users and show review modal
+      // First check if there are users to review
       const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
       console.log('🔍 Reviewable users response:', reviewableResponse);
       const users = reviewableResponse.users || reviewableResponse.data?.users || [];
       console.log('👥 Extracted users:', users);
       
       if (users.length > 0) {
-        // Store the completion data for later use after reviews
+        // There are users to review - require reviews before completion
         setReviewableUsers(users);
         setSelectedAnnouncement(myRides.find(r => r.id === announcementId) || goingRides.find(r => r.id === announcementId));
         
@@ -565,8 +560,8 @@ const MyAnnouncements = () => {
           </div>
         )}
 
-        {/* Show time remaining until completion is available */}
-        {status === 'accepted' && !announcement.ride_completed && !isRideTimePassed(announcement.date, announcement.time) && (
+        {/* Show completion requirements message */}
+        {status === 'accepted' && !announcement.ride_completed && (
           <div style={{
             backgroundColor: COLORS.surfaceLight,
             color: COLORS.textMuted,
@@ -577,8 +572,8 @@ const MyAnnouncements = () => {
             textAlign: 'center',
             marginBottom: '1rem'
           }}>
-            <FaClock style={{ marginRight: '0.5rem' }} />
-            Complete Ride button will be available after {announcement.time} on {new Date(announcement.date).toLocaleDateString()}
+            <FaInfoCircle style={{ marginRight: '0.5rem' }} />
+            Complete Ride to finish this journey and review co-passengers
           </div>
         )}
 

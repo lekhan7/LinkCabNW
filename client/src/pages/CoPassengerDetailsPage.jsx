@@ -9,7 +9,7 @@ import ReviewModal from '../components/ReviewModal';
 import { 
   FaUsers, FaUserCheck, FaUserClock, FaUserTimes, FaStar, FaMapMarkerAlt, 
   FaCalendar, FaClock, FaFilter, FaArrowLeft, FaEye, FaCar, FaRupeeSign,
-  FaUserCircle, FaCheckCircle
+  FaUserCircle, FaCheckCircle, FaInfoCircle
 } from 'react-icons/fa';
 
 const CoPassengerDetailsPage = () => {
@@ -48,7 +48,6 @@ const CoPassengerDetailsPage = () => {
   const canCompleteRide = (announcement) => {
     return (
       !announcement.ride_completed && 
-      isRideTimePassed(announcement.date, announcement.time) &&
       announcement.created_by?.id === user?.id
     );
   };
@@ -244,12 +243,12 @@ const CoPassengerDetailsPage = () => {
 
   const handleCompleteRide = async (announcementId, completionType = 'creator') => {
     try {
-      // First fetch reviewable users and show review modal
+      // First check if there are users to review
       const reviewableResponse = await reviewAPI.getReviewableUsers(announcementId);
       const users = reviewableResponse.users || reviewableResponse.data?.users || [];
       
       if (users.length > 0) {
-        // Store the completion data for later use after reviews
+        // There are users to review - require reviews before completion
         setReviewableUsers(users);
         
         // Store completion info to use after reviews are done
@@ -722,8 +721,8 @@ const CoPassengerDetailsPage = () => {
         </motion.div>
       )}
 
-      {/* Show time remaining until completion is available */}
-      {!announcement.ride_completed && !isRideTimePassed(announcement.date, announcement.time) && (
+      {/* Show completion requirements message */}
+      {!announcement.ride_completed && (
         <motion.div
           variants={itemVariants}
           initial="hidden"
@@ -739,8 +738,8 @@ const CoPassengerDetailsPage = () => {
             marginBottom: '2rem'
           }}
         >
-          <FaClock style={{ marginRight: '0.5rem' }} />
-          Complete Ride button will be available after {announcement.time} on {new Date(announcement.date).toLocaleDateString()}
+          <FaInfoCircle style={{ marginRight: '0.5rem' }} />
+          Complete Ride to finish this journey and review co-passengers
         </motion.div>
       )}
 
