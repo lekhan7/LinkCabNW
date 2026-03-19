@@ -94,9 +94,11 @@ const Notifications = () => {
       } else if (notification.type === 'rating_received' || notification.type?.includes('review')) {
         // Navigate to analytics page for review notifications
         navigate('/analytics');
-      } else if (notification.type === 'join_accepted' && notification.related_user_phone) {
+      } else if ((notification.type === 'join_accepted' || notification.type === 'JOIN_REQUEST_ACCEPTED') && (notification.related_user_phone || notification.whatsapp_phone || notification.phone_number)) {
         // Open WhatsApp with the creator's phone number
-        const whatsappUrl = `https://wa.me/${notification.related_user_phone.replace('+', '')}?text=Hi, my request was accepted for the ride.`;
+        const phoneNumber = notification.related_user_phone || notification.whatsapp_phone || notification.phone_number;
+        const whatsappUrl = `https://wa.me/${phoneNumber.replace(/[+\s-]/g, '')}?text=Hi, my request was accepted for the ride.`;
+        console.log('🔔 Opening WhatsApp:', whatsappUrl);
         window.open(whatsappUrl, '_blank');
       } else if (notification.announcement_id) {
         // For other announcement-related notifications, navigate to announcement details
@@ -521,13 +523,16 @@ const Notifications = () => {
                         </>
                       )}
                       
-                      {notification?.type === 'join_accepted' && (
+                      {(notification?.type === 'join_accepted' || notification?.type === 'JOIN_REQUEST_ACCEPTED') && (
                         <button
                           onClick={() => {
-                            const phoneNumber = notification?.related_user_phone || notification?.whatsapp_phone;
+                            const phoneNumber = notification?.related_user_phone || notification?.whatsapp_phone || notification?.phone_number;
                             if (phoneNumber) {
-                              const whatsappUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=Hi, my request was accepted for the ride. Let's coordinate pickup details.`;
+                              const whatsappUrl = `https://wa.me/${phoneNumber.replace(/[+\s-]/g, '')}?text=Hi, my request was accepted for the ride. Let's coordinate pickup details.`;
+                              console.log('🔔 Opening WhatsApp from button:', whatsappUrl);
                               window.open(whatsappUrl, '_blank');
+                            } else {
+                              console.error('❌ No phone number found for WhatsApp:', notification);
                             }
                           }}
                           style={{
