@@ -56,28 +56,28 @@ router.post('/signup', upload.single('profilePhoto'), async (req, res) => {
     }
     
     // Extract data from FormData or JSON
-    const { name, email, phoneNumber, password } = req.body;
+    const { name, phoneNumber, password } = req.body;
 
-    console.log('Signup attempt:', { name, email, phoneNumber, password: '***' });
+    console.log('Signup attempt:', { name, phoneNumber, password: '***' });
 
-    if (!name || !email || !phoneNumber || !password) {
+    if (!name || !phoneNumber || !password) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required: name, email, phone number, and password'
+        message: 'All fields are required: name, phone number, and password'
       });
     }
 
-    // Check if user already exists (by email or phone)
+    // Check if user already exists (by phone)
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('*')
-      .or(`phone_number.eq.${phoneNumber},email.eq.${email}`)
+      .eq('phone_number', phoneNumber)
       .single();
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email or phone number already exists'
+        message: 'User with this phone number already exists'
       });
     }
 
@@ -87,7 +87,6 @@ router.post('/signup', upload.single('profilePhoto'), async (req, res) => {
     // Prepare user data with actual database schema
     const userData = {
       name,
-      email,
       phone_number: phoneNumber,
       password: hashedPassword,
       role: 'user' // Use default role from schema
@@ -409,7 +408,6 @@ router.get('/profile', async (req, res) => {
       data: {
         id: user.id,
         name: user.name,
-        email: user.email,
         phone_number: user.phone_number,
         role: user.role,
         created_at: user.created_at

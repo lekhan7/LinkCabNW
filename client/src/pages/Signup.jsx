@@ -9,7 +9,6 @@ import { FaCamera } from 'react-icons/fa';
 const Signup = () => {
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phoneNumber: '',
     password: '',
     confirmPassword: '',
@@ -91,11 +90,6 @@ const Signup = () => {
       newErrors.name = 'Name must be at least 2 characters long';
     }
     
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
     
     if (!formData.phoneNumber) {
       newErrors.phoneNumber = 'Phone number is required';
@@ -131,7 +125,6 @@ const Signup = () => {
     // Create FormData for file upload
     const submitData = new FormData();
     submitData.append('name', formData.name);
-    submitData.append('email', formData.email);
     submitData.append('phoneNumber', formData.phoneNumber);
     submitData.append('password', formData.password);
     submitData.append('profilePhoto', profilePhoto);
@@ -488,57 +481,6 @@ const Signup = () => {
                 )}
               </div>
 
-              <div style={{ marginBottom: '1.1rem' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    color: COLORS.text,
-                    marginBottom: '0.5rem',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                  }}
-                >
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email address"
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem 0.9rem',
-                    backgroundColor: COLORS.background,
-                    border: `1px solid ${errors.email ? COLORS.error : COLORS.border}`,
-                    borderRadius: '12px',
-                    color: COLORS.text,
-                    fontSize: '1rem',
-                    transition: 'all 0.2s ease',
-                    outline: 'none',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = COLORS.primary;
-                    e.target.style.boxShadow = '0 0 0 4px rgba(245, 196, 0, 0.18)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.email ? COLORS.error : COLORS.border;
-                    e.target.style.boxShadow = 'none';
-                  }}
-                />
-                {errors.email && (
-                  <p
-                    style={{
-                      color: COLORS.error,
-                      fontSize: '0.8rem',
-                      marginTop: '0.35rem',
-                      marginBottom: 0,
-                    }}
-                  >
-                    {errors.email}
-                  </p>
-                )}
-              </div>
 
               <div style={{ marginBottom: '1.1rem' }}>
                 <label
