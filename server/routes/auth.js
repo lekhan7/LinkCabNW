@@ -269,13 +269,13 @@ router.post('/verify-otp', async (req, res) => {
       .eq('verified', false)
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     console.log('OTP query result:', { data: otpData, error });
 
-    if (error || !otpData) {
-      console.log('OTP validation failed:', error?.message || 'OTP not found');
+    // Check if OTP exists and is valid
+    if (error || !otpData || otpData.length === 0) {
+      console.log('OTP validation failed:', error?.message || 'OTP not found or expired');
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP',
@@ -283,11 +283,14 @@ router.post('/verify-otp', async (req, res) => {
       });
     }
 
+    // Get the first (and only) OTP record
+    const validOtp = otpData[0];
+
     // Mark OTP as verified
     await supabase
       .from('otps')
       .update({ verified: true })
-      .eq('id', otpData.id);
+      .eq('id', validOtp.id);
 
     // Update user's phone verification status
     await supabase
