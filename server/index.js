@@ -53,7 +53,8 @@ const io = new Server(server, {
       'http://localhost:5174',
       'http://localhost:3000',
       'https://linkcab-fj1k.onrender.com',
-      'https://linkcab.pages.dev'
+      'https://linkcab.pages.dev',
+      'https://linkcab.ktkarumbaiah.workers.dev'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true
