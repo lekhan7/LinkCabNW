@@ -15,6 +15,7 @@ CREATE EXTENSION IF NOT EXISTS "postgis";
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     code_number VARCHAR(50) UNIQUE NOT NULL,
     phone_number VARCHAR(15) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -39,6 +40,7 @@ CREATE TABLE users (
 
 -- Indexes for users
 CREATE INDEX idx_users_phone_number ON users(phone_number);
+CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_code_number ON users(code_number);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_is_online ON users(is_online);
