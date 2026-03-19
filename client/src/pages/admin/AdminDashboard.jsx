@@ -56,7 +56,15 @@ const AdminDashboard = () => {
         return;
       }
 
-      // Verify admin role
+      // First check if user has admin credentials stored in session
+      const isAdminFromSession = sessionStorage.getItem('isAdmin') === 'true';
+      
+      if (isAdminFromSession && session.user.email === 'admin@gmail.com') {
+        setLoading(false);
+        return;
+      }
+
+      // For other users, verify admin role from database
       const { data: userData, error } = await supabase
         .from('users')
         .select('role')
