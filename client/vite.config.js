@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cloudflare()],
   define: {
     // Ensure environment variables are available at build time
     'import.meta.env.DEV': JSON.stringify(process.env.NODE_ENV !== 'production'),
