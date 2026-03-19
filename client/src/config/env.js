@@ -1,10 +1,10 @@
 // Environment configuration for the client
 export const config = {
   // API base URL - change this to match your server configuration
-  apiBaseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  apiBaseUrl: import.meta.env.VITE_API_URL || 'https://linkcab-0t9d.onrender.com/api',
   
   // Alternative base URL for development (when server is on different port)
-  devApiBaseUrl: 'http://localhost:5000/api',
+  devApiBaseUrl: 'https://linkcab-0t9d.onrender.com/api',
   
   // Other environment variables can be added here
   environment: import.meta.env.MODE || 'development',
