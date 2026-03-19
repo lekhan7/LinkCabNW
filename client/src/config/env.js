@@ -7,6 +7,7 @@ export const config = {
   devApiBaseUrl: 'https://linkcab-0t9d.onrender.com/api',
   
   // Other environment variables can be added here
+  
   environment: import.meta.env.MODE || 'development',
   
   // Supabase configuration (directly configured)
