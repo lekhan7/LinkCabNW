@@ -172,13 +172,13 @@ const NotificationBar = () => {
       if (notification.type === 'FAVORITE_ROUTE_MATCH') {
         console.log('🔔 Navigating to announcements page for favorite route match');
         navigate('/announcements');
+      } else if (notification.type === 'rating_received' || notification.type?.includes('review')) {
+        console.log('🔔 Navigating to analytics page for review notification');
+        navigate('/analytics');
       } else if (notification.type === 'join_accepted' && notification.related_user_phone) {
         const whatsappUrl = `https://wa.me/${notification.related_user_phone.replace('+', '')}?text=Hi, my request was accepted for the ride.`;
         console.log('🔔 Opening WhatsApp:', whatsappUrl);
         window.open(whatsappUrl, '_blank');
-      } else if (notification.type === 'rating_received' || notification.type?.includes('review')) {
-        console.log('🔔 Navigating to analytics page for review notification');
-        navigate('/analytics');
       } else if (notification.announcement_id) {
         console.log('🔔 Navigating to announcement (fallback):', notification.announcement_id);
         navigate(`/announcement/${notification.announcement_id}`);

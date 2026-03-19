@@ -91,13 +91,13 @@ const Notifications = () => {
       if (notification.type === 'FAVORITE_ROUTE_MATCH') {
         // Navigate to announcements list (not details)
         navigate('/announcements');
+      } else if (notification.type === 'rating_received' || notification.type?.includes('review')) {
+        // Navigate to analytics page for review notifications
+        navigate('/analytics');
       } else if (notification.type === 'join_accepted' && notification.related_user_phone) {
         // Open WhatsApp with the creator's phone number
         const whatsappUrl = `https://wa.me/${notification.related_user_phone.replace('+', '')}?text=Hi, my request was accepted for the ride.`;
         window.open(whatsappUrl, '_blank');
-      } else if (notification.type === 'rating_received' || notification.type?.includes('review')) {
-        // Navigate to analytics page for review notifications
-        navigate('/analytics');
       } else if (notification.announcement_id) {
         // For other announcement-related notifications, navigate to announcement details
         navigate(`/announcement/${notification.announcement_id}`);
