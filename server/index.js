@@ -42,6 +42,9 @@ const debugAuthRoutes = require('./routes/debugAuth');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy for rate limiting (fixes X-Forwarded-For error)
+app.set('trust proxy', true);
+
 // Socket.io setup for real-time notifications
 const io = new Server(server, {
   cors: {
@@ -137,7 +140,8 @@ app.use(hpp());
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200, // limit each IP to 200 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.'
+  message: 'Too many authentication attempts, please try again later.',
+  trustProxy: true // Important for deployment behind proxy
 });
 
 // CORS configuration - Updated for production

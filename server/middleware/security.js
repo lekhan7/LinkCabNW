@@ -13,6 +13,7 @@ const adminRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  trustProxy: true // Important for deployment
 });
 
 // Rate limiting for sensitive operations
@@ -24,6 +25,7 @@ const sensitiveRateLimit = rateLimit({
     message: 'Too many sensitive operations, please try again later.'
   },
   skipSuccessfulRequests: true,
+  trustProxy: true // Important for deployment
 });
 
 // Security headers configuration

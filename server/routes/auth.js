@@ -84,11 +84,19 @@ router.post('/signup', upload.single('profilePhoto'), async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Generate unique code number
+    const generateCodeNumber = () => {
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `LC${timestamp}${random}`;
+    };
+
     // Prepare user data with actual database schema
     const userData = {
       name,
       email,
       phone_number: phoneNumber,
+      code_number: generateCodeNumber(), // Add missing code_number
       password: hashedPassword,
       role: 'user' // Use default role from schema
     };
