@@ -103,7 +103,7 @@ const NotificationBar = () => {
       if (!notifications || notifications.length === 0 || notifications.some(n => !n.title || !n.message || n.title === 'undefined' || n.message === 'undefined')) {
         console.log('🔍 RPC returned no data or undefined values, trying direct query...');
         try {
-          const directResponse = await fetch('http://localhost:5000/api/notifications/direct', {
+          const directResponse = await fetch('https://linkcab-0t9d.onrender.com/api/notifications/direct', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -6,11 +6,15 @@ import { io } from 'socket.io-client';
 
 // Create socket instance with proper authentication
 const createSocket = (token) => {
-  return io('http://localhost:5000', {
+  // Use production backend URL
+  const backendUrl = 'https://linkcab-0t9d.onrender.com';
+  
+  return io(backendUrl, {
     auth: {
       token: token
     },
-    forceNew: true
+    forceNew: true,
+    transports: ['websocket', 'polling'] // Ensure proper connection
   });
 };
 
