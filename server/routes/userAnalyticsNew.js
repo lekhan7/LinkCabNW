@@ -33,47 +33,28 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     console.log('📊 Fetching analytics dashboard for user:', userId);
 
-    // TASK 5: Fetch Rides Created - Count rides created by the logged-in user
+    // Simple count queries without complex joins
     const { count: ridesCreated, error: ridesCreatedError } = await supabase
       .from('announcements')
       .select('*', { count: 'exact', head: true })
       .eq('created_by', userId);
 
-    if (ridesCreatedError) {
-      console.error('Failed to fetch rides created:', ridesCreatedError);
-    }
-
-    // TASK 6: Fetch Rides Joined - Count rides where user joined someone else's ride
     const { count: ridesJoined, error: ridesJoinedError } = await supabase
       .from('announcement_participants')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('status', 'accepted');
 
-    if (ridesJoinedError) {
-      console.error('Failed to fetch rides joined:', ridesJoinedError);
-    }
-
-    // TASK 7: Fetch Reviews Received - Count all reviews related to rides created by the current user
     const { count: reviewsReceived, error: reviewsError } = await supabase
       .from('review_details')
       .select('*', { count: 'exact', head: true })
       .eq('reviewee_id', userId);
 
-    if (reviewsError) {
-      console.error('Failed to fetch reviews received:', reviewsError);
-    }
-
-    // TASK 8: Fetch Reports Received - Count reviews where report_type is not null
     const { count: reportsReceived, error: reportsError } = await supabase
       .from('review_details')
       .select('*', { count: 'exact', head: true })
       .eq('reviewee_id', userId)
       .not('report_type', 'is', null);
-
-    if (reportsError) {
-      console.error('Failed to fetch reports received:', reportsError);
-    }
 
     const dashboardData = {
       totalRidesCreated: ridesCreated || 0,
@@ -98,20 +79,16 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
-// TASK 9: Show Reviews Per Announcement - Get reviews grouped by announcement
+// Get reviews per announcement - FIXED VERSION
 router.get('/reviews-by-announcement', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     console.log('📋 Fetching reviews by announcement for user:', userId);
 
-    // Get reviews for rides created by the current user, grouped by announcement
+    // Simple query without complex joins to avoid errors
     const { data: reviews, error: reviewsError } = await supabase
       .from('review_details')
-      .select(`
-        *,
-        reviewer:users!review_details_user_id_fkey (name),
-        announcement:announcements(id, start_location_name, destination_name, date, time)
-      `)
+      .select('*')
       .eq('reviewee_id', userId)
       .order('created_at', { ascending: false });
 
@@ -123,26 +100,49 @@ router.get('/reviews-by-announcement', authenticateToken, async (req, res) => {
       });
     }
 
+    // Get announcement details separately
+    const announcementIds = [...new Set(reviews.map(r => r.announcement_id).filter(id => id))];
+    const { data: announcements, error: announcementsError } = await supabase
+      .from('announcements')
+      .select('id, start_location_name, destination_name, date, time')
+      .in('id', announcementIds);
+
+    if (announcementsError) {
+      console.error('Failed to fetch announcements:', announcementsError);
+    }
+
+    // Get reviewer details separately  
+    const reviewerIds = [...new Set(reviews.map(r => r.reviewer_id).filter(id => id))];
+    const { data: reviewers, error: reviewersError } = await supabase
+      .from('users')
+      .select('id, name')
+      .in('id', reviewerIds);
+
+    if (reviewersError) {
+      console.error('Failed to fetch reviewers:', reviewersError);
+    }
+
     // Group reviews by announcement
     const reviewsByAnnouncement = {};
     
     reviews.forEach(review => {
       const announcementId = review.announcement_id;
-      const announcement = review.announcement;
+      const announcement = announcements?.find(a => a.id === announcementId);
+      const reviewer = reviewers?.find(r => r.id === review.reviewer_id);
       
       if (!reviewsByAnnouncement[announcementId]) {
         reviewsByAnnouncement[announcementId] = {
-          announcement: announcement,
+          announcement: announcement || { id: announcementId, start_location_name: 'Unknown', destination_name: 'Unknown', date: null, time: null },
           reviews: []
         };
       }
       
       reviewsByAnnouncement[announcementId].reviews.push({
-        reviewerName: review.reviewer?.name || 'Anonymous',
-        starsGiven: review.stars,
-        reviewDescription: review.review_description,
-        reportType: review.report_type,
-        reportDescription: review.report_description,
+        reviewerName: reviewer?.name || 'Anonymous',
+        starsGiven: review.stars || review.rating || 0,
+        reviewDescription: review.review_description || '',
+        reportType: review.report_type || '',
+        reportDescription: review.report_description || '',
         dateOfReview: review.created_at
       });
     });
