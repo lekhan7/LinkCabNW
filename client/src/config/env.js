@@ -9,7 +9,7 @@ export const config = {
   // Other environment variables can be added here
   environment: import.meta.env.MODE || 'development',
   
-  // Supabase configuration (if needed on client side)
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  // Supabase configuration (directly configured)
+  supabaseUrl: 'https://noqifjjjrvlptyovteih.supabase.co',
+  supabaseAnonKey: 'sb_publishable_CVmKkTkJqsoBwl8ySKM6DQ_ee7TSoZR',
 };

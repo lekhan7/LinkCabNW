@@ -5,10 +5,6 @@ import { config } from './env.js';
 const supabaseUrl = config.supabaseUrl;
 const supabaseAnonKey = config.supabaseAnonKey;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase configuration. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-}
-
 // Create Supabase client with anonymous key for client operations
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
