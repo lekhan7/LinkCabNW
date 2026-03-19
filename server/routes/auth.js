@@ -91,12 +91,16 @@ router.post('/signup', upload.single('profilePhoto'), async (req, res) => {
       return `LC${timestamp}${random}`;
     };
 
+    // Generate code number immediately to ensure it exists
+    const userCodeNumber = generateCodeNumber();
+    console.log('🔢 Generated code_number:', userCodeNumber);
+
     // Prepare user data with actual database schema
     const userData = {
       name,
       email,
       phone_number: phoneNumber,
-      code_number: generateCodeNumber(), // Add missing code_number
+      code_number: userCodeNumber, // Use pre-generated code
       password: hashedPassword,
       role: 'user' // Use default role from schema
     };
@@ -104,6 +108,15 @@ router.post('/signup', upload.single('profilePhoto'), async (req, res) => {
     // Add profile photo if uploaded
     if (req.file) {
       userData.profile_picture = `/uploads/${req.file.filename}`;
+    }
+
+    // Debug: Log the userData before insertion
+    console.log('🔍 userData before insertion:', JSON.stringify(userData, null, 2));
+
+    // Final safety check - ensure code_number exists
+    if (!userData.code_number) {
+      userData.code_number = `LC${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      console.log('🔧 Applied fallback code_number:', userData.code_number);
     }
 
     // Create new user
