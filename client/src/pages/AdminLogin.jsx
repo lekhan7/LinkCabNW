@@ -27,7 +27,16 @@ const AdminLogin = () => {
       }
 
       if (data.user) {
-        // Verify admin role
+        // Check for admin credentials without database role check
+        if (email === 'admin@gmail.com' && password === '123') {
+          console.log('Admin credentials verified. Welcome Admin.');
+          // Store admin status in session storage
+          sessionStorage.setItem('isAdmin', 'true');
+          navigate('/admin/dashboard');
+          return;
+        }
+
+        // For other users, verify admin role from database
         const { data: userData, error: roleError } = await supabase
           .from('users')
           .select('role')

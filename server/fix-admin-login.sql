@@ -11,7 +11,7 @@ SELECT id, name, email, phone_number, role, verified FROM users WHERE id = '2fc1
 -- If admin user doesn't exist, create it properly
 INSERT INTO users (id, name, email, phone_number, password, role, verified, created_at)
 VALUES (
-    'admin-user-id-12345',
+    '00000000-0000-0000-0000-000000000001',
     'Admin User',
     'admin@gmail.com',
     '+1234567890',

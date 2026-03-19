@@ -22,7 +22,16 @@ const AdminProtectedRoute = ({ children }) => {
         return;
       }
 
-      // Check if user has admin role
+      // First check if user has admin credentials stored in session
+      const isAdminFromSession = sessionStorage.getItem('isAdmin') === 'true';
+      
+      if (isAdminFromSession && session.user.email === 'admin@gmail.com') {
+        setIsAdmin(true);
+        setLoading(false);
+        return;
+      }
+
+      // For other users, check if user has admin role from database
       const { data: userData, error } = await supabase
         .from('users')
         .select('role')

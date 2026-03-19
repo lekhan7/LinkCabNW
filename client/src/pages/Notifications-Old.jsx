@@ -56,7 +56,7 @@ const Notifications = () => {
       // Handle different notification types based on new specification
       if (notification.type === 'FAVORITE_ROUTE_MATCH' && notification.announcement_id) {
         // Navigate to announcement page
-        navigate(`/announcement/${notification.announcement_id}`);
+        navigate(`/announcement`);
       } else if (notification.type === 'join_accepted' && notification.related_user_phone) {
         // Open WhatsApp with creator's phone number
         const whatsappUrl = `https://wa.me/${notification.related_user_phone.replace('+', '')}?text=Hi, my request was accepted for the ride.`;
@@ -64,12 +64,8 @@ const Notifications = () => {
       } else if (notification.type === 'join_rejected') {
         // Just mark as read - no special action needed
         return;
-      } else if (notification.type === 'join_request') {
-        // Navigate to announcement to manage co-passengers
-        navigate(`/announcement/${notification.announcement_id}`);
-      } else if (notification.announcement_id) {
-        // For other announcement-related notifications, navigate to announcement details
-        navigate(`/announcement/${notification.announcement_id}`);
+      
+      
       }
     } catch (err) {
       console.error('Error handling notification click:', err);

@@ -20,6 +20,13 @@ const Login = () => {
       return;
     }
     
+    // Check for admin credentials (using phone number as identifier)
+    if (phoneNumber === 'admin@gmail.com' && password === '123') {
+      // Redirect to admin login for proper admin authentication
+      navigate('/admin/login');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -120,13 +127,13 @@ const Login = () => {
                   fontWeight: '600',
                 }}
               >
-                Phone Number
+                Phone Number or Admin Email
               </label>
               <input
-                type="tel"
+                type="text"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+91XXXXXXXXXX"
+                placeholder="+91XXXXXXXXXX or admin@gmail.com"
                 style={{
                   width: '100%',
                   padding: '0.85rem',
